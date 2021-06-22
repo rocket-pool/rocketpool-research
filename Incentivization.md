@@ -4,12 +4,12 @@ In this section, we discuss our incentivization ideas for attracting both node o
 
 **NOTE: Many of these ideas assume the successful deployment of enforcement mechanisms within the protocol to ensure that validators "play by the rules" (by sharing their MEV and Priority Fee earnings with the rETH staking pool).
 We suggest you put the notion of "cheating" aside while reading about these ideas, and consider them on their merits; that is, consider the benefit each idea might convey to Rocket Pool users without concern about securing against bad actors.
-Once you're done reading, please review the details of our enforcement mechanism proposals in the Security section for more information.**
+Once you're done reading, please review the details of our enforcement mechanism proposals in the [Security](./Security.md) section for more information.**
 
 
 ## The Smoothing Pool
 
-In the analysis section, we made it abundantly clear that MEV and priority fees are projected to make up a considerable amount of a node operator's income - in some cases, more than doubling proposal and attestation rewards on eth2.
+In the [Analysis](./Analysis.md) section, we made it abundantly clear that MEV and priority fees are projected to make up a considerable amount of a node operator's income - in some cases, more than doubling proposal and attestation rewards on eth2.
 While the Flashbots research paper suggests that MEV will unconditionally provide better returns than conventional node operation alone, it also indicates there is likely to be a **significant luck factor** involved in a node operator's MEV earnings.
 Either by a shortage of block proposal opportunities, relatively low-reward bundles, or a period of low activity on the chain, the range of expected MEV rewards will likely vary greatly from the luckiest to the unluckiest case.
 
@@ -78,7 +78,7 @@ The system would work as follows:
 
 By the sheer virtue of ease-of-use, along with access to these bundle providers' services, we anticipate that this will encourage Rocket Pool node usage for the majority of users who want turnkey access to competitive returns while simultaneously promoting the relative health of the network.
 
-Furthermore, providing this capability (when coupled with the security measures that enforce fair distribution of funds) would make Rocket Pool's rETH returns quite competitive as demonstrated in the Analysis section.
+Furthermore, providing this capability (when coupled with the security measures that enforce fair distribution of funds) would make Rocket Pool's rETH returns quite competitive as demonstrated in the [Analysis](./Analysis.md) section.
 We expect that these collaborations would have the largest effect on the overall longevity of the protocol, and we are closely exploring them.
 
 

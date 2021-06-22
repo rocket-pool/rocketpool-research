@@ -85,31 +85,32 @@ Nevertheless, this scenario is included as a point of reference.
 
 A scenario in which *everyone* shared their rewards appropriately would result in 2.50 ETH per year for node operators (a **15.60% APY**) and 2.04 ETH per year for the rETH staking pool (a **12.76% APY**).
 This is shown in the **Sharing** scenario in the model.
-It demonstrates that if rewards socialization can be enforced, then the pool is immediately competitive with other offerings which can offer a **maximum of 14.19%** (but will likely take a commission on MEV earnings and priority fees as well, which will lower this amount). 
+It demonstrates that if socialization of all rewards can be enforced, then the pool is immediately competitive with other offerings which can offer a **maximum of 14.19%** (but will likely take a commission on MEV earnings and priority fees as well, which will lower this amount). 
 
 These scenarios are summarized in the following table.
 
 | Scenario | Node Operator Returns | rETH Pool Returns |
 | - | - | - |
-| Solo staking / other pools,<br/>normalized to 16 ETH (for reference) | 2.27 ETH (**14.19% APY**) | 2.27 ETH (**14.19% APY**) |
+| Solo staking, normalized to<br/>16 ETH (for reference) | 2.27 ETH (**14.19% APY**) | 2.27 ETH (**14.19% APY**) |
 | Sharing all returns | 2.50 ETH (**15.60% APY**) | 2.04 ETH  (**12.76% APY**) |
 | Sharing priority fees but not MEV<br/>(requires `0x02` to be accepted) | 3.12 ETH (**19.52% APY**) | 1.31 ETH (**8.84% APY**) |
-| Not sharing any rewards: | 3.56 ETH (**22.25% APY**) | 0.98 ETH (**6.10% APR**) |
+| Not sharing any rewards | 3.56 ETH (**22.25% APY**) | 0.98 ETH (**6.10% APR**) |
 
-The team is currently exploring ways to incentivize fair sharing of these rewards with the rETH staking pool, and have suggested several options described in the Incentivization and Security sections appropriately.
+The team is currently exploring ways to incentivize fair sharing of these rewards with the rETH staking pool, and have suggested several options described in the [Incentivization](./Incentivization.md) and [Security](./Security.md) sections appropriately.
 The relevant enforcement mechanism discussed here is the **slashing and negative commission** system.
 In this system, when a "cheater" is detected, the node operator's RPL is auctioned and their commission is set to a negative amount.
 The proceeds from the RPL auction, and a large a mount of the validator's Beacon Chain balance, are then provided to the rETH staking pool as compensation for the stolen funds. 
 
-For more information on this system and its corresponding detection mechanisms, please visit the Security section.
+For more information on this system and its corresponding detection mechanisms, please visit the [Security](./Security.md) section.
 
 
 ## Scenarios Including Enforcement
 
 This segment of the model demonstrates what happens to a node operator's returns in the event that they are detected during selfish activities and punished by the slashing and negative commission system.
 They assume that **75% of the validator's balance** on the Beacon Chain will be refunded to the rETH staking pool (a commission rate of -75%).
-This was chosen for the sake of the model because as the penalty increases, less total ETH is given to the node operator and thus they have less incentive to exit the validator.
+This was chosen as an arbitrary but severe penalty because as the penalty increases, less total ETH is given to the node operator and thus they have less incentive to exit the validator.
 In the worst case, they could hold the Beacon Chain balance "hostage" out of spite, ensuring that the rETH pool never receives its fair share from that validator.
+This value could certainly be optimized in the future, and could even vary depending on the severity of the node operator's transgressions.
 
 The model reveals the following scenarios (assuming there is **no compounding interest**, after **11 years of operation**):
 
@@ -117,7 +118,7 @@ The model reveals the following scenarios (assuming there is **no compounding in
 | - | - | - |
 | Sharing all returns | 27.45 ETH (**171.59%**) | 22.46 ETH (**140.39%**) |
 | Sharing priority fees but not MEV,<br/>and slashed (requires `0x02` to be accepted) | 22.36 ETH (**139.76%**) | 27.55 ETH (**172.22%**) |
-| Not sharing any rewards, and slashed: | 27.17 ETH (**169.82%**) | 22.74 ETH (**142.16%**) |
+| Not sharing any rewards, and slashed | 27.17 ETH (**169.82%**) | 22.74 ETH (**142.16%**) |
 
 This indicates that using the model's averaged projections for priority fees and MEV earnings, it will take **over 11 years** to break even and begin earning more via cheating than a node operator would via sharing.
 It also indicates that `0x02`'s acceptance would offer a nontrivial security benefit to Rocket Pool in cases where priority fees are not completely overshadowed by MEV earnings, but is not explicitly required for Rocket Pool's success.

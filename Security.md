@@ -28,7 +28,7 @@ In theory, it would be more lucrative for a validator to set up a private channe
 The Ethereum protocol itself currently does not have the ability to prevent this variety of side-channel activity which is largely considered to be unhealthy - so unhealthy, in fact, that its implication has been enough to dissuade the adoption of `0x02` into the eth2.0 specification.
 
 **What this means for Rocket Pool**: a sufficiently determined node operator could create an infrastructure that includes these side channels, and thus capture a large portion of the total block proposal rewards without sharing them with the rETH staking pool.
-As we discussed in the Analysis section, this would cause a tremendous increase in the node operator's APY and a correspondingly tremendous *decrease* in the rETH pool's APY (if this behavior is common enough to affect the total pool's return rate).
+As we discussed in the [Analysis](./Analysis.md) section, this would cause a tremendous increase in the node operator's APY and a correspondingly tremendous *decrease* in the rETH pool's APY (if this behavior is common enough to affect the total pool's return rate).
 As a result, the rETH staking pool's returns would no longer be competitive compared to other (centralized) pools that don't have this problem, and the health of the protocol would be threatened.
 
 While there is considerable research going into reducing MEV's practicality or potential across the network in future iterations of the Ethereum protocol, Rocket Pool must assume that MEV will be present in the quick merge and prepare accordingly.
@@ -50,7 +50,7 @@ There are a few drawbacks to this system:
 - It would not adequately compensate the rETH staking pool if the "stolen" funds amounted to more than the validator's total balance on the Beacon Chain.
 - It does not prevent future theft - doing so would require node operators to share their validator keys with the Oracle DAO, which would use them to force a validator exit upon confirmation of selfish activity. We have decided that this would against the decentralized spirit of Rocket Pool and are not pursuing this vector.
 
-That being said, in the Analysis section we demonstrate that on average, it would take a selfish node operator **several years** to break even from losing their initial deposit to a combined slashing and negative commission setting.
+That being said, in the [Analysis](./Analysis.md) section we demonstrate that on average, it would take a selfish node operator **several years** to break even from losing their initial deposit to a combined slashing and negative commission setting.
 We expect that this will act as enough of a deterrent to prevent selfish behavior, providing that behavior can be detected.
 
 It would be trivial to check if a node operator has changed the `coinbase` argument to something other than the minipool address (or the smoothing pool address) and punish them accordingly.
@@ -63,7 +63,7 @@ We have several ideas for such detection, which are proposed below.
 
 ## Option 1: The Side-Channel Monitoring System
 
-This is a new system that Rocket Pool is experimenting with to deter side-channel activities, and ensure that blocks proposed by Rocket Pool node operators only contain transactions that were part of the public mempool, or came from a collaborating MEV provider (see the Incentivization section for more information on these).
+This is a new system that Rocket Pool is experimenting with to deter side-channel activities, and ensure that blocks proposed by Rocket Pool node operators only contain transactions that were part of the public mempool, or came from a collaborating MEV provider (see the [Incentivization](./Incentivization.md) section for more information on these).
 
 In this system the Oracle DAO would actively and continuously monitor the public Ethereum mempool across hundreds of nodes distributed around the globe.
 It would catalog each transaction that enters the pool, including the proposed gas cost, the time of entry, the sender and receiver, and the contents via the transaction's hash.
@@ -84,7 +84,7 @@ With respect to monitoring a minipool's status, **we are working with the https:
 As this is one of the most prominent eth2.0 block exploring sites and is frequently used for monitoring the status of a validator, we felt that this is one of the most promising options to notify node operators of a side-channel detection event.
 This way, they have an opportunity to take corrective action.
 
-As we discussed in the Analysis section, we expect the punishment of RPL and Beacon Chain balance slashing would serve as a strong deterrent against side channel and shadow mempool abuse.
+As we discussed in the [Analysis](./Analysis.md) section, we expect the punishment of RPL and Beacon Chain balance slashing would serve as a strong deterrent against side channel and shadow mempool abuse.
 
 
 ## Option 2: Trusted Block Builders
