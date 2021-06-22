@@ -61,3 +61,5 @@ Our justification:
 + over the last year the median has been 85 gwei
 + if the gas price remains that high going forward then layer 2 has failed and Ethereum is in trouble
 + based on our research even if the gas price is higher we still have headroom to absorb
+
+We use [Flashbot's research paper](https://hackmd.io/@flashbots/mev-in-eth2) and associated Jupiter Notebook for MEV estimates and average ETH2 proposals.
