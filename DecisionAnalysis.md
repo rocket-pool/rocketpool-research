@@ -30,7 +30,7 @@ One option is for Rocket Pool to do nothing. Clearly the rational choice for nod
 
 To counter-act this natural incentive, the Rocket Pool protocol would need apply a penalty if node operators do not share fees or MEV (if possible).
 
-With this option, a dishonest node operator would experience, at least, 8 years of reduced returns.
+With this option, a dishonest node operator would experience, at least, **11 years** of reduced returns.
 
 ![Penalty - Decision Matrix](DecisionMatrix-Penalty.png)
 
@@ -44,8 +44,8 @@ Unfortunately incentives alone are not enough to provoke the choice; we have cur
 
 As ETH2 participation increases the returns from penalty fees and MEV reduce so the penalty effect increases.
 
-+ At **7M** total ETH staked, a dishonest node operator would experience, at least, **10 years** of reduced returns.
-+ At **8M** total ETH staked, a dishonest node operator would experience, at least, **11 years** of reduced returns.
++ At **7M** total ETH staked, a dishonest node operator would experience, at least, **13 years** of reduced returns.
++ At **8M** total ETH staked, a dishonest node operator would experience, at least, **15 years** of reduced returns.
 
 ## Full Analysis
 
@@ -53,7 +53,7 @@ Here is a spreadsheet of the full analysis: [FeeMEVAnalysis.xlsx](FeeMEVAnalysis
 
 ## References
 
-We use [Justin Drake's spreadsheet](https://docs.google.com/spreadsheets/d/1FslqTnECKvi7_l4x6lbyRhNtzW9f6CVEzwDf04zprfA/) for ETH2 issuance numbers. We also used it to calculate the estimated priority fees but we adjusted the assumed gas price from 120 gwei to 40 gwei. 
+We use [Justin Drake's spreadsheet](https://docs.google.com/spreadsheets/d/1FslqTnECKvi7_l4x6lbyRhNtzW9f6CVEzwDf04zprfA/) for ETH2 issuance numbers. We also used it to calculate the estimated priority fees but we adjusted the assumed gas price to 20 gwei. 
 
 Our justification:
 
@@ -63,3 +63,17 @@ Our justification:
 + based on our research even if the gas price is higher we still have headroom to absorb
 
 We use [Flashbot's research paper](https://hackmd.io/@flashbots/mev-in-eth2) and associated Jupiter Notebook for MEV estimates and average ETH2 proposals.
+
+We used the Flashbot's approach for calculating the number of ETH2 proposals given the number of validators (187500 in below):
+
+```
+Python 3.8.5 (default, May 27 2021, 13:30:53) 
+[GCC 9.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from scipy.stats import binom
+>>> binom.ppf(0.01,31556952/12, 1/187500)
+6.0
+>>> binom.ppf(0.99,31556952/12, 1/187500)
+23.0
+>>> 
+```
