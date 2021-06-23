@@ -45,7 +45,7 @@ They will be at the mercy of their own luck; however, they will be able to trigg
 Switching between the two modes would be possible, though it would need to come with a requisite cooldown period to prevent gaming the system.
 
 In either mode, **node operators would receive >100% return on their fair share of the MEV rewards, just as they do with eth2 rewards today**, thanks to the commission system.
-We expect the smoothing pool to be a unique and popular capability that will encourage a fair distribution of rewards; in conjuction with the resulting variance reduction, we expect increased incentivization in using Rocker Pool for node operation.
+We expect the smoothing pool to be a unique and popular capability that will encourage a fair distribution of rewards; in conjuction with the resulting variance reduction, we expect increased incentivization in using Rocket Pool for node operation.
 
 Note that the smoothing pool is still just an idea at this point, and its implementation is largely undecided.
 We want to gauge the community's feedback on this idea before pursuing its development.
