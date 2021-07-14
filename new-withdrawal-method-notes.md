@@ -11,7 +11,7 @@ to issue the correct RPL rewards. The important thing is that ending balances ar
 Methods
 =======
 
-There are now two withdrawal methods `processWithdrawal()` and `processWithdrawalAndDestroy()` the later just being a convience method that node operators can call to withdraw and
+There are now two withdrawal methods `processWithdrawal()` and `processWithdrawalAndDestroy()` the later just being a convenience method that node operators can call to withdraw and
 destroy the pool in a single transaction.
 
 `processWithdrawal()` can be called multiple times but each time is treated as if the entire balance is the full validator withdrawal amount.
