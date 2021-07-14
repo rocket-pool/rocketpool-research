@@ -72,7 +72,7 @@ Scenario C - Less than 32 ETH but more than 16 ETH is returned
 Scenario D - Less than 32 ETH but more than 16 ETH is returned and NO won't process withdrawal
 ----------------------------------------------------------------------------------------------
 1. oDAO marks pool as `Withdrawable`.
-2. Anyone can call `processWithdrawal()` if pool because minipool is `Withdrawable` and balance is > 16 ETH.
+2. Anyone can call `processWithdrawal()` because minipool is `Withdrawable` and balance is > 16 ETH.
 3. 16 ETH is returned to rETH contract.
 4. Remaining ETH is returned to NO.
 5. NO can call `destroy()` if they want to destroy to pool to unlock their RPL stake.
@@ -104,9 +104,7 @@ Scenario G - Less than 16 ETH is returned and oDAO is not functioning
 ---------------------------------------------------------------------
 1. Less than 16 ETH is returned to minipool.
 2. oDAO does not mark pool as `Withdrawable`.
-3. NO is forced to call `processWithdrawalAndDestroy()` to get their stake back.
+3. NO can call `processWithdrawal()`.
 4. Total balance is sent to rETH contract.
-5. NO's RPL is slashed and auctioned in an attempt to make up the loss.
-6. NO can `withdraw()` any remaining RPL.
 
-> Note: This scenario fails if there isn't a great enough incentive for NO to call `processWithdrawalAndDestroy()` i.e. their RPL stake is not worth enough for it to be worthwhile (which is likely given a malicious or inoperable oDAO). We can't just allow anyone to call `processWithdrawal()` if the pool is still `Staking` and there is less than 16 ETH because that would allow anyone to grief NOs by slashing them. This is worst case scenario and results in loss of funds but should be exceptionally unlikely as slashings greater than 16 ETH will already be incredibly unlikely and then top it off with a malicious oDAO.
+> Note: This scenario fails because there is no incentive for NO to call `processWithdrawal()` and we can't just allow anyone to call `processWithdrawal()` if the pool is still `Staking` and there is less than 16 ETH because that would allow anyone to grief NOs by slashing them. This is worst case scenario and results in loss of funds but should be exceptionally unlikely as slashings greater than 16 ETH will already be incredibly unlikely and then top it off with a malicious oDAO.
