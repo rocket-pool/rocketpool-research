@@ -324,3 +324,70 @@ Our request is to monitor these values, notice when they've become larger than 0
 
 When either value drops back down to 0, meaning the respective rewards have been claimed, the user should be notified of a successful claim as well.
 We can further explore this notification to link to the transaction on Eth1 showing the total gas cost of the transaction and the total RPL claimed.
+
+
+### Minipool Marked as Withdrawable
+
+Once a validator either voluntarily exits the Beacon Chain or gets slashed, the validator's balance will be returned to the corresponding minipool address on Eth1.
+The minipool will then wait until the Oracle DAO marks it as exited from the Beacon Chain and is now withdrawable.
+Users should be alerted when this marking occurs, so they know when their funds are available to claim and the minipool is ready to be closed.
+
+Getting the minipool's status was shown in the original example, but it's replicated here for simplicity:
+
+```go
+minipool, err := minipool.NewMinipool(rp, minipoolAddress)
+statusDetails, err := minipool.GetStatusDetails(nil)
+status := statusDetails.Status
+```
+
+`minipool.GetStatusDetails()` returns a `minipool.StatusDetails` struct, which contains three fields:
+
+1. `Status` (`types.MinipoolStatus`) indicates the current minipool's status, which is one of five options: `Initialized`, `Prelaunch`, `Staking`, `Withdrawable`, and `Dissolved`.
+2. `StatusBlock` (`uint64`) is the Eth1 block at the time of calling the function
+3. `StatusTime` (`time.Time`) is the time when the function was called  
+
+This notification would trigger when the minipool's status changed from `Staking` to `Withdrawable`.
+
+
+### RPL Collateral Goes Too Low or Too High
+
+RPL rewards at reward checkpoints have two major rules to follow:
+
+1. If the RPL you staked as collateral falls below 10% of your 16 ETH bond (or 1.6 ETH in value), you won't be able to claim your rewards until you bring it back up to 10% (either by staking more RPL, or waiting for the price to rise)
+2. You are only eligible for rewards up to a collateral ratio of 150% of your 16 ETH bond (so if your staked RPL is worth, say, 30 ETH, you will only be rewarded for 24 ETH).
+
+The RPL collateral stake is handled at the node level rather than the minipool level, and is thus calculated based on the total number of minipools owned by the node.
+When a node operator's collateral levels fall below 10% or above 150%, they should be notified so that they can decide if action needs to be taken.
+
+RPL's price (relative to ETH) is updated by the Oracle DAO once per day and this event would only trigger upon such an update, so we don't anticipate this will generate a considerable amount of spam for the users.
+
+The example below shows how to get the node's current RPL stake, the minimum (10%) stake, and the maximum (150%) stake:
+
+```go
+import (
+    "github.com/rocket-pool/rocketpool-go/node"
+    ...
+)
+...
+
+currentStakeWei, err := node.GetNodeRPLStake(rp, nodeAddress, nil)
+currentStake := eth.WeiToEth(currentStakeWei)
+
+minimumStakeWei, err := node.GetNodeMinimumRPLStake(rp, nodeAddress, nil)
+minimumStake := eth.WeiToEth(minimumStakeWei)
+
+maximumStakeWei, err := node.GetNodeMaximumRPLStake(rp, nodeAddress, nil)
+maximumStake := eth.WeiToEth(maximumStakeWei)
+
+fmt.Printf("Current stake: %f\nMinimum stake: %f\nMaximum stake: %f\n", currentStake, minimumStake, maximumStake)
+```
+
+This would produce the following output:
+
+```
+Current stake: 300.000000
+Minimum stake: 290.497224
+Maximum stake: 4357.458357
+```
+
+If the value from `node.GetNodeRPLStake()` ever falls below `node.GetNodeMinimumRPLStake()` or rises above `node.GetNodeMaximumRPLStake()`, the user should be notified.
