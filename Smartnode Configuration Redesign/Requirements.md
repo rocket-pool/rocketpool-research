@@ -22,7 +22,8 @@ Each one must be satisfied by one or more requirements, which dictate the rules 
 | U2.6 | I need to quickly switch between arbitrary settings without exiting. |
 | U2.7 | I need to specify which containers I want Rocket Pool to run, and which I control myself (hybrid mode). |
 | U2.8 | I need to be able to cancel without saving anything, so my original settings are preserved. |
-| U2.9 | I want the UI to show me the navigation controls at all times, so I don't get confused. | 
+| U2.9 | I want the UI to show me the navigation controls at all times, so I don't get confused. |
+| U2.10 | I want the system to restart the relevant containers for me when I'm done configuring. |
 
 
 ## Requirements
@@ -42,3 +43,5 @@ Each one must be satisfied by one or more requirements, which dictate the rules 
 | R12 | The system shall be able to commit changes to disk without exiting. | U2.8 |
 | R13 | The system shall display the navigation controls in a persistent segment of the screen at all times. | U2.9 |
 | R14 | The system shall document which version it is currently using, so future releases understand how to interpret the current configuration. | U1.1, U1.2 |
+| R15 | The system shall track which containers are affected by each setting. | U2.10 |
+| R16 | The system shall prompt the user to restart the affected containers when committing changes to disk. | U2.10 |
