@@ -12,6 +12,7 @@ Each one must be satisfied by one or more requirements, which dictate the rules 
 | U1.2 | I need Rocket Pool to understand and retain my existing settings when going from the legacy config system to this new one. |
 | U1.3 | I need the config files to work with Docker Compose, as they do now. |
 | U1.4 | I should not need to manually edit any of the files in order to change settings. |
+| U1.5 | I should not need to duplicate common modifications to the launch scripts for every combination of network and architecture. | 
 | | |
 | U2 | **[ Service Config Interface ]** |
 | U2.1 | I need to be able to change all of the options associated with Rocket Pool through a single configuration UI. |
@@ -45,3 +46,6 @@ Each one must be satisfied by one or more requirements, which dictate the rules 
 | R14 | The system shall document which version it is currently using, so future releases understand how to interpret the current configuration. | U1.1, U1.2 |
 | R15 | The system shall track which containers are affected by each setting. | U2.10 |
 | R16 | The system shall prompt the user to restart the affected containers when committing changes to disk. | U2.10 |
+| R17 | The system shall use a standard (single instance of the) launch script for the EC, regardless of network and architecture. | U1.5 |
+| R18 | Copy of R17 for the Beacon Node. | U1.5 |
+| R19 | Copy of R17 for the Validator Client. | U1.5 |
