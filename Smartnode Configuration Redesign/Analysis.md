@@ -69,7 +69,8 @@ Pros of PD2:
 Cons of PD2:
 - The parameter definitions aren't explictly exposed, so third party config utilities need to review the code to stay in lock-step with Smartnode releases
 
-**Conclusion**: Leaning towards PD2, but more discussion is needed first.
+**Conclusion**: After further discussion, the pros of PD2 outweigh the cons.
+**We will use PD2**. 
 
 
 ### DC2, DC3, and DC4
