@@ -13,6 +13,7 @@ Each one must be satisfied by one or more requirements, which dictate the rules 
 | U1.3 | I need the config files to work with Docker Compose, as they do now. |
 | U1.4 | I should not need to manually edit any of the files in order to change settings. |
 | U1.5 | I should not need to duplicate common modifications to the launch scripts for every combination of network and architecture. | 
+| U1.6 | I want to be able to create third-party configuration tools that can create configuration files for the Smartnode. |
 | | |
 | U2 | **[ Service Config Interface ]** |
 | U2.1 | I need to be able to change all of the options associated with Rocket Pool through a single configuration UI. |
@@ -49,3 +50,5 @@ Each one must be satisfied by one or more requirements, which dictate the rules 
 | R17 | The system shall use a standard (single instance of the) launch script for the EC, regardless of network and architecture. | U1.5 |
 | R18 | Copy of R17 for the Beacon Node. | U1.5 |
 | R19 | Copy of R17 for the Validator Client. | U1.5 |
+| R20 | The configuration files shall conform to a well-defined, published standard. | U1.6 |
+| R21 | The system shall accept configuration files that conform to their standard, regardless of origin. | U1.6 |
