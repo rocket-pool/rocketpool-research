@@ -59,6 +59,8 @@ To avoid node operators taking others hostage:
   + RPL bonds are not as efficient as ETH bonds because they require the auction mechanism. 
   + We could just allow ODAO members to perform unbonded minipools as before?
 + If you end up in a group of bad node operators, you will be punished even though you are performing well
+  + A 7 share requires 5 to attest, a 10 requires 7 to attest - you only need a couple of bad apples
+  + It makes it pretty easy to grief the network
 
 
 ## Background
