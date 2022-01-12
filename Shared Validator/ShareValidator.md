@@ -37,7 +37,8 @@
 To avoid node operators taking others hostage:
 
 + Set staking periods (1yr, 2yr, 3yr, etc)
-+ Presigned exits - who holds the presigned exit messages? how do they renew/expire? You could have the oDAO hold presigned exits distribuited between multiple members that will need to reconstruct if all else fails. How do you solve it now? with a single operator?
++ Presigned exits - who holds the presigned exit messages? how do they renew/expire? how could these be generated without broadcasting?
+  + oDAO members could hold presigned exits distributed between multiple members that will need to reconstruct if all else fails.
 
 ### Distribution of Funds (after withdrawal)
 
@@ -48,8 +49,16 @@ To avoid node operators taking others hostage:
 
 + Validators without an ETH bond have little incentive to exit - liquidity effects?
 + Are validators punished for bad behaviour? What behaviour? How is it detected? What punishment?
-+ How are validators incentivised? ETH commission? RPL? In SSV.Network's case in SSV, no rev share at all.
-+ How do we ensure that no more than 1/3 are malicious? Thus reducing Ethereum security as it scales - An RPL bond would still have to be required for permissionless unbonded minipool but is that enough? The idea is to reduce the bond how low could we go? RPL bonds are not as efficient as ETH bonds because they require the auction mechanism. We could just allow ODAO members to perform unbonded minipools as before?
++ How are validators incentivised? 
+  + ETH commission? 
+  + RPL? 
+  + In SSV.Network's case in SSV, no rev share at all.
++ How do we ensure that no more than 1/3 are malicious? Thus reducing Ethereum security as it scales
+  + An RPL bond would still have to be required for permissionless unbonded minipool but is that enough? 
+  + The idea is to reduce the bond how low could we go? 
+  + RPL bonds are not as efficient as ETH bonds because they require the auction mechanism. 
+  + We could just allow ODAO members to perform unbonded minipools as before?
++ If you end up in a group of bad node operators, you will be punished even though you are performing well
 
 
 ## Background
