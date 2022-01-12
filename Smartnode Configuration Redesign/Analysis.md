@@ -84,6 +84,7 @@ Pros:
 - Supports hybrid mode and enabling / disabling of Grafana
 - Completely standard `docker-compose` files, their contents don't change per setup
 - Doesn't require the Smartnode to know how to create `docker-compose` files
+- Users can change the template, and their modifications will be preserved between iterations
 
 Cons:
 - None?
@@ -112,3 +113,20 @@ Cons:
 - Possible to create an inconsistency between the settings value file and these files by editing them directly
 
 **Conclusion**: More discussion is needed first.
+
+
+## UI Candidates
+
+**UI1** (the text-based adventure) is the simplest option and the closest to what we have today, but it's going to be very cumbersome to navigate and change lots of settings.
+It will likely take *more* time via this route than it already does, and one of the things we're trying to accomplish is limiting the amount that the UI gets in your way.
+
+**UI2** is an interesting approach.
+It's still within the terminal, so it still works via SSH (e.g. no radical change from a user's interaction workflow), but it provides a much more flexible platform for configuring things.
+It will require its own trade study regarding which framework to use though, and it will likely take longer to build than **UI1** would.
+
+**UI3** is less of a UI architecture around `service config` and trends more towards replacing the CLI entirely with a different UI.
+This is what Dave started experimenting with via the old GUI, for example.
+It's the most ill-defined of the three because it's purposefully vague (you could really implement this with any technology you wanted, including the TUI from **UI2** or even have multiple implementations).
+It would require building a supplemental UI anyway.
+
+**Conclusion**: Leaning towards UI2 for initial experimentation.
