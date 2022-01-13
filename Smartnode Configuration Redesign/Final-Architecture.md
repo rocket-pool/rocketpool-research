@@ -18,6 +18,8 @@ To make this easier for other developers, we will be expanding upon the command 
 We will also be documenting these surfaces more thoroughly.
 Ultimately, doing this enables things such as third-party GUIs or webapps to leverage the underlying functionality of the CLI where necessary, and replace it where possible.
 
+Thank you to community members Poupas and Yorick for working with us to understand third-party interoperability needs. 
+
 
 ## Configuration Files
 
@@ -48,18 +50,22 @@ Third party applications can replicate this behavior, or simply invoke the CLI d
 ### Docker Compose Files
 
 For the sake of maximizing modularity, we will be moving to a new setup where each container managed by Rocket Pool will now get its own `docker-compose` file rather than rolling all of them up into a single file.
-These files will be stored during the installation process as templates.
-After `service config`, the Smartnode will copy the templates for every relevant container into a runtime directory, omitting the files for the containers that were not relevant, and execute `docker-compose` on the entire directory at once.
-The template files will be extremely parameterized via the use of environment variable substitution - each of which is controlled by a `service config` parameter - such that modifications to the files themselves should not be necessary except under the most unusual of infrastructures. 
+These files will be stored during the installation process as templates in a `templates` directory.
+After `service config`, the Smartnode will copy the templates for every relevant container into a `runtime` directory, omitting the files for the containers that were not relevant, and execute `docker-compose` on the entire directory at once.
+The template files will be extremely parameterized via the use of environment variable substitution - each of which is controlled by a `service config` parameter - such that modifications to the files themselves should not be necessary except under the most unusual of infrastructures.
 
-This has a major advantage: it allows first-class support of Hybrid Mode (where the Smartnode attaches to an externally-managed ETH1 and/or ETH2 client).
-In such a configuration, the Smartnode can simply omit the `eth1` and/or `eth2` container definition files so the user no longer has to modify them manually.
+To allow users to easily customize these files, we will also have a `custom` folder alongside `templates` and `runtime`.
+Users can add one (or multiple) [docker-compose override files](https://docs.docker.com/compose/extends/#adding-and-overriding-configuration) in this directory.
+`service start` will amend each file in this directory to its call to `docker-compose`, allowing all of the template parameters to be overwritten by the user's customizations.
+We will include more documentation on this process to ensure users know how to properly leverage this capability.
 
-Users that *do* need to modify things should modify the templates, rather than the copied runtime files as the templates will be copied into the runtime directory with each execution of `service config`.
+This approach has two major advantages:
+1. It allows first-class support of Hybrid Mode (where the Smartnode attaches to an externally-managed ETH1 and/or ETH2 client).
+    In such a configuration, the Smartnode can simply omit the `eth1` and/or `eth2` container definition files so the user no longer has to modify them manually.
+2. It will allow persistence of `docker-compose` customization across updates or reinstallations.
+    We will never remove or modify the contents of this folder during an update, so any changes the user makes via customization files here will remain after an update.
 
-To mitigate situations where the user's changes are overwritten during updates via `service install`, we are exploring the use of three-way merge libraries, much like `openssh` does for updates to its configuration file.
-Ideally the `docker-compose` templates are build modularly enough that such merges never need to occur because we never modify the files, but this capability will cover such a case in the event that it happens.
-As the only ones that will ever encounter it are advanced users with custom Docker needs, we believe such individuals are capable of navigating a three-way merge and don't consider this requirement to be an issue.
+Thank you to users CVJoint, LookingForOwls, Faisalm, Ryemus, Yorick, and Benv for helping us design this new system.
 
 
 ## User Interface
