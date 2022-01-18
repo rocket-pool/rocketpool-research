@@ -56,6 +56,7 @@ c.	A percentage that increases with each non-compliance. (e.g. 1% then 5% then 1
 3.	Once MEV becomes accessible to validators, the above values may need to be reconsidered.
 4. Our minipool delegate is not setup to distribute rewards until the minipool is withdrawn so this solution locks rewards in the pool which is not efficient.
 5. Consensus clients must add support for per validator account fee recipients for this solution to work.
+6. This solution fails once rewards of a single validator exceeds 16 ETH. At this point, in the current design, anyone could call distribute on the minipool. The current design expects any balance over 16 ETH to be the final withdrawal amount and so that 16 ETH will be sent to rETH users and the NO will be slashed.
 
 ## Solution B - Per Minipool Reward Distributor Contract
 
@@ -151,6 +152,7 @@ The watchtower would need to be modified to also count the ETH in the fee distri
 - This solution is technically more complicated and requires more contract upgrades than the others. But overall the UX is superior.
 - MEV rewards would also be sent to this distributor contract. With the option to introduce a global smoothing pool at a later stage.
 - This creates a clear separation between staking rewards and priority fees / MEV rewards and gives us more flexibility on handling withdrawals once the spec has been finalised.
+- This solution does not require per validator account fee recipients as each node will have a single address. It is still desirable to have this option for users running an advanced setup that might have both Rocket Pool and non Rocket Pool validators.
 
 # Withdrawals
 
