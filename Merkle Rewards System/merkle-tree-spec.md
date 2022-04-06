@@ -14,7 +14,7 @@ Users should be able to use this specification to independently verify the tree 
 ### Tree Size and Leaf Nodes
 
 The Rewards Merkle Tree is a complete binary tree, where each node has exactly two children (with the exception of leaf nodes, which have zero).
-Therefore, the total size of the tree is *always* a power of 2.
+Therefore, the total size of the tree is *always* a power of 2, minus 1.
 
 Fundamental to each Merkle Tree is the data that is used to produce the leaf nodes of the tree.
 Each Rocket Pool node will represent a single leaf node.
@@ -96,8 +96,7 @@ For example, say there were a node with the following values in its metadata:
 
 This node would have the following metadata byte array (in hexadecimal):
 
-`0x8b0ef9f1932a2e44c3d27be4c70c3bc07a6a27b3000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000014d1120
-d7b16000000000000000000000000000000000000000000000000000022b1c8c1227a0000`
+`0x8b0ef9f1932a2e44c3d27be4c70c3bc07a6a27b3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014d1120d7b16000000000000000000000000000000000000000000000000000022b1c8c1227a0000`
 
 Taking the `Keccak256` hash of this value will produce the **value of the corresponding leaf node** in the tree for this Rocket Pool node.
 
