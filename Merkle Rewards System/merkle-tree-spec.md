@@ -26,7 +26,7 @@ For example, if there were 9 Rocket Pool nodes, they would each constitute a lea
 
 ### Sorting Leaf Nodes
 
-Prior to tree generation, all of the Rocket Pool nodes must be hashed to produce the values of the corresponding leaf nodes.
+Prior to tree generation, all of the Rocket Pool nodes's metadata must be hashed to produce the values of the corresponding leaf nodes.
 This collection must then be **sorted lexicographically** by these hash values, so the leaf node with the lowest value becomes the leftmost (first) leaf node.
 The leaf node with the second-lowest value must be the second leaf node, and so on.
 
@@ -78,7 +78,7 @@ Each of these values is defined as follows:
 
 - `address` is the standard 20-byte Ethereum address of the node wallet.
 - `network` is a 256-bit (32-byte) unsigned integer representing which network the node has selected for their rewards.
-  - `0` represents mainnet.
+  - `0` represents Mainnet.
   - More values will be added as we integrate support for various L2s to the rewards system. Currently, `0` is the only legal value for this.
 - `totalRPL` is a 256-bit (32-byte) unsigned integer representing how much RPL in total the node has received for this rewards period.
   - This value is the sum of the RPL rewards provided for staking minipools and the RPL rewards provided for ODAO membership.
@@ -102,10 +102,15 @@ d7b16000000000000000000000000000000000000000000000000000022b1c8c1227a0000`
 Taking the `Keccak256` hash of this value will produce the **value of the corresponding leaf node** in the tree for this Rocket Pool node.
 
 
+### Nodes With No Rewards
+
+For a node to be added to the Rewards Merkle Tree, it must have either more than 0 RPL rewards or more than 0 ETH rewards.
+**A node with 0 RPL rewards and 0 ETH rewards is not added to the tree. It is ignored as though it didn't exist.**
+
+
 ## Complete Example
 
-To do a complete example of the tree structure, consider the following 9 nodes where the RPL and ETH values are already provided in as decimal strings in `wei`:
-
+To do a complete example of the tree structure, consider the following 9 Rocket Pool nodes where the RPL and ETH values are already provided as decimal strings in `wei`:
 
 ```json
 "0x14cb2253a2F9898EFA43b9ca15bCFDE401CCFbe7": {
