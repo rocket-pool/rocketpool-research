@@ -2,12 +2,13 @@
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
 
-Disclaimers / Notes:
+## Disclaimers / Notes
 
 - All arithmetic described here is intended to be **integer arithmetic**. There are no floating point values, and floating point division is not used to allow for maximum portability and elimination of floating point errors.
 - Unless explicitly specified, the following rules about data formats apply:
   - Timestamps are represented as **Unix timestamps**, and are provided as a **total number of seconds** since the Unix Epoch.
   - Token quantities are represented in **wei**.
+  - The code samples here are all presented in **pseudocode** format and will not compile to a known language. Extrapolate to your system of choice accordingly.
 
 
 ## Scheduling and Target Blocks
@@ -288,3 +289,178 @@ You may want to compare this amount to the original `pDaoRewards` calculation ea
 
 
 ## Smoothing Pool Rewards
+
+The Smoothing Pool's current balance is distributed to all of the nodes that have been **opted into the Smoothing Pool** for some (or all) of this rewards interval and are **eligible**, with one exception.
+
+
+### Interval 0
+
+The **first rewards interval** using the Redstone rewards system **will not produce Smoothing Pool rewards**.
+This is because the Smoothing Pool's rewards calculation depends on the time that the previous interval occurred as a way to determine each minipool's eligibility and prorating status, and the event containing that data is only emitted upon a successful rewards snapshot.
+
+For the first interval using Redstone's system (interval 0), ignore the Smoothing Pool calculation.
+Its balance will be rolled over into interval 1.
+
+
+### Balance and Start Blocks
+
+Start by getting the current balance of the Smoothing Pool contract:
+
+```go
+smoothingPoolBalance := RocketSmoothingPool.Balance()
+```
+
+If the balance is 0 (e.g., because nobody has opted into the Smoothing Pool), simply end here.
+
+Next, get the rewards event emitted for the previous interval:
+
+```go
+previousIntervalEvent := RocketRewardsPool.RewardSnapshot(currentIndex - 1)
+```
+
+From this event, you can get the `bnStartBlock` and the `elStartBlock` for this interval:
+
+```go
+bnStartBlock := previousIntervalEvent.ConsensusBlock + 1
+elStartBlock := previousIntervalEvent.ExecutionBlock + 1
+```
+
+This makes the Smoothing Pool's duration for this interval equal to:
+
+```go
+totalIntervalDuration := targetElBlock.Time / elStartBlock.Time
+```
+
+
+### Node Eligibility
+
+For each registered node (the gathering of which was shown previously in the RPL calculation), assess its eligibility for Smoothing Pool rewards.
+
+Get the opt-in status and the last time of a Smoothing Pool status change for the node:
+```go
+isOptedIn := RocketNodeManager.getSmoothingPoolRegistrationState(nodeAddress)
+statusChangeTime := RocketNodeManager.getSmoothingPoolRegistrationChanged(nodeAddress) // Timestamp of the last opt-in or opt-out operation
+```
+
+If the node wasn't opted in **at all** (at any point) during this interval, it is not eligible.
+Ignore it.
+
+If the node was opted in **for the entire period**, it is fully eligible for rewards:
+
+```go
+nodeEligibleSeconds = totalIntervalDuration
+```
+
+If the node opted in **during the period**, it is *partially* eligible.
+Calculate its eligibility factor as follows:
+
+```go
+nodeEligibleSeconds = (targetElBlock.Time - statusChangeTime) / totalIntervalDuration
+```
+
+If the node opted out **during the period**, it is *partially* eligible.
+Calculate its eligibility factor as follows:
+
+```go
+nodeEligibleSeconds = (statusChangeTime - elStartBlock.Time) / totalIntervalDuration
+```
+
+Next, look at the minipools for the node with the following contract methods:
+```go
+nodeMinipoolCount := RocketMinipoolManager.getNodeMinipoolCount(nodeAddress)
+nodeMinipools := address[nodeMinipoolCount]
+for i := 0; i < nodeMinipoolCount; i++ {
+    nodeMinipools[i] = RocketMinipoolManager.getMinipoolAt(i)
+}
+```
+
+Get the current `state` and `penaltyCount` for each minipool:
+
+```go
+state := minipool.getStatus()
+penaltyCount := RocketStorage.GetUint(keccak256("network.penalties.penalty", minipoolAddress))
+```
+
+If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible.
+Remove it from the list of eligible nodes and ignore it.
+
+
+### Calculating Attestation Performance
+
+For each `staking` minipool in each eligible node, process the attestation performance of the minipool to gauge its `participationRate`.
+
+Attestation performance is calculated on an Epoch-by-Epoch basis, from the first Epoch to the last Epoch of the interval, as follows for each Epoch:
+
+1. Get the **attestation committees** for the Epoch (e.g., `/eth/v1/beacon/states/head/committees?epoch=<epochIndex>`)
+2. Traverse the list of slots and committees, noting the `slotIndex`, `committeeIndex`, and `position` of an attestation assignment for the minipool.
+3. Get the block at `slotIndex` (e.g., `/eth/v2/beacon/blocks/<slotIndex>`)
+4. Look at the attestations for the matching `slotIndex`, `committeeIndex`, and `position`.
+   1. If it was recorded, this attestation was successful. Add it to a running list of `goodAttestations`.
+   2. If not, try the next slot. Continue doing this for up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`). If it isn't in any of them, the attestation was missed. Add it to a running list of `missedAttestations`.
+
+
+### Calculating Node Rewards
+
+Start by calculating the average fee (commission) across all of the eligible minipools, which can be retrieved with the following contract function per minipool:
+
+```go
+minipoolFee := minipool.getNodeFee()
+```
+
+Call it the `averageFee`.
+
+Next, calculate the amount of ETH that should go to the pool stakers (`poolStakerShare`), and the amount that goes to all of the node operators (`nodeOpShare`) based on this average fee:
+
+```go
+halfSmoothingPoolBalance := smoothingPoolBalance / 2
+commissionAmount := halfSmoothingPoolBalance * averageFee / _100Percent
+poolStakerShare := halfSmoothingPool - commissionAmount
+nodeOpShare := smoothingPoolBalance - poolStakerShare
+```
+
+As with RPL rewards, these are not the final values - they simply serve as a reference when calculating each node operator's share.
+
+For each eligible minipool, start with a base `minipoolShare` of 100% plus its fee (for example, a 15% commission minipool would start with a base share of 115):
+
+```go
+minipoolShare := _100Percent + minipoolFee
+```
+
+Now, scale this by its `eligibilityFactor` (the amount of time it was opted into the Smoothing Pool):
+
+```go
+if nodeEligibleSeconds < totalIntervalDuration {
+    minipoolShare = minipoolShare * nodeEligibleSeconds / totalIntervalDuration
+}
+```
+
+Next, scale this by its `participationRate` (the ratio of `goodAttestations` to total attestations):
+
+```go
+minipoolShare = minipoolShare * goodAttestations / (goodAttestations + missedAttestations)
+```
+
+Add up all of the individual `minipoolShare` values to determine the `totalMinipoolShare`.
+
+Using this, the share of the Smoothing Pool ETH per minipool can be calculated as follows:
+
+```go
+minipoolEth := nodeOpShare * minipoolShare / totalMinipoolShare
+```
+
+Add up the `minipoolEth` for each node's minipools.
+This is the **total amount of ETH awarded to that node:** `nodeSmoothingPoolEth`.
+
+Add up the `minipoolEth` for each minipool.
+This is the **total amount of ETH awarded to all Node Operators:** `totalEthForMinipools`.
+
+Calculate the true value of the ETH awarded to pool stakers:
+
+```go
+truePoolStakerEth := smoothingPoolBalance - totalEthForMinipools
+```
+
+
+## Constructing the Tree
+
+With all of the above values, you can now create the Merkle tree for this interval using the [tree specification](./merkle-tree-spec.md).
