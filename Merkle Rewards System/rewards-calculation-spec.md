@@ -318,12 +318,12 @@ Next, get the rewards event emitted for the previous interval:
 previousIntervalEvent := RocketRewardsPool.RewardSnapshot(currentIndex - 1)
 ```
 
-From this event, you can get the `bnStartBlock` and the `elStartBlock` for this interval:
+From this event, you can get the `bnStartBlock` and the `elStartBlock` for this interval.
 
-```go
-bnStartBlock := previousIntervalEvent.ConsensusBlock + 1
-elStartBlock := previousIntervalEvent.ExecutionBlock + 1
-```
+The `bnStartBlock` is the first non-missed slot in the Epoch *after* the Epoch that `previousIntervalEvent.ConsensusBlock` belonged to.
+
+Pre-merge, the `elStartBlock` is simply `previousIntervalEvent.ExecutionBlock + 1`.
+Post-merge, the `elStartBlock` is the EL block that corresponds to `bnStartBlock`.
 
 This makes the Smoothing Pool's duration for this interval equal to:
 
