@@ -378,7 +378,7 @@ Get the current `state` and `penaltyCount` for each minipool:
 
 ```go
 state := minipool.getStatus()
-penaltyCount := RocketStorage.GetUint(keccak256("network.penalties.penalty", minipoolAddress))
+penaltyCount := RocketStorage.getUint(keccak256("network.penalties.penalty", minipoolAddress))
 ```
 
 If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible.
