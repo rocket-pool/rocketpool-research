@@ -370,7 +370,7 @@ Next, look at the minipools for the node with the following contract methods:
 nodeMinipoolCount := RocketMinipoolManager.getNodeMinipoolCount(nodeAddress)
 nodeMinipools := address[nodeMinipoolCount]
 for i := 0; i < nodeMinipoolCount; i++ {
-    nodeMinipools[i] = RocketMinipoolManager.getMinipoolAt(i)
+    nodeMinipools[i] = RocketMinipoolManager.getNodeMinipoolAt(i)
 }
 ```
 
@@ -378,7 +378,7 @@ Get the current `state` and `penaltyCount` for each minipool:
 
 ```go
 state := minipool.getStatus()
-penaltyCount := RocketStorage.getUint(keccak256("network.penalties.penalty", minipoolAddress))
+penaltyCount := RocketNetworkPenalties.getPenaltyCount(minipoolAddress)
 ```
 
 If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible.
