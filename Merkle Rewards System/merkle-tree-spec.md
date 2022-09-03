@@ -1,8 +1,6 @@
-# [Draft] Specification for the Rewards Merkle Tree
+# Specification for the Rewards Merkle Tree
 
-> **NOTE: This is a DRAFT specification. It may change as we continue development on the rewards system.**
-
-In the next update of the Rocket Pool smart contracts, we are preparing to introduce a new rewards system based on a Merkle Tree distribution system.
+Rocket Pool's [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) update has introduced a new rewards system based on a Merkle Tree distribution system.
 For each rewards interval, this tree will capture the RPL rewards (both for node operation and Oracle DAO membership) and the ETH rewards (from the Smoothing Pool, if relevant) for all of the nodes in the Rocket Pool network.
 
 The following is a specification that formally describes the tree's construction and behavior.

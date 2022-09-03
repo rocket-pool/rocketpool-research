@@ -91,4 +91,4 @@ For example:
 - Bob queries his Beacon node, and receives confirmation that Epoch **1001** (1 after the Epoch he opted out in) was finalized by slot 32064 (Epoch 1002). After slot 32064, Bob can now safely change his fee recipient to his node's fee distributor contract address.
 
 The rationale here is to prevent people from noticing they have an upcoming proposal assignment and intentionally front-running it with an opt-out transaction so they collect the priority fees and MEV for themselves.
-As proposal assignments are only fully decided the Epoch **before** the one in which the proposal is due, this "cooldown" period lasts until the Epoch after the opt-out transaction to ensure the user could not have taken advantage of this lookahead functionality.
+As proposal assignments are only fully decided the Epoch **before** the one in which the proposal is due, this "cooldown" period lasts until the Epoch after the opt-out transaction has been finalized to ensure the user could not have taken advantage of this lookahead functionality.
