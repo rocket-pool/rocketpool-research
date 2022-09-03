@@ -370,7 +370,7 @@ Next, look at the minipools for the node with the following contract methods:
 nodeMinipoolCount := RocketMinipoolManager.getNodeMinipoolCount(nodeAddress)
 nodeMinipools := address[nodeMinipoolCount]
 for i := 0; i < nodeMinipoolCount; i++ {
-    nodeMinipools[i] = RocketMinipoolManager.getNodeMinipoolAt(i)
+    nodeMinipools[i] = RocketMinipoolManager.getNodeMinipoolAt(nodeAddress, i)
 }
 ```
 
