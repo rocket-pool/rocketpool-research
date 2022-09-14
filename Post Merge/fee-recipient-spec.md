@@ -1,10 +1,5 @@
 # Determining a Node Operator's Fee Recipient via On-Chain Data
 
----
-## *NOTE: The below is still a DRAFT specification. It has not been finalized yet.*
----
-
-
 The expected fee recipient for any Rocket Pool validator (a "minipool") can be completely derived via on-chain data.
 This is the specification for determining what a node operator's (and by extension, their minipools') fee recipient should be based on the current state of the Beacon and Execution chains.
 Block builder relays can use this to detect if a validator corresponds to a Rocket Pool minipool and derive its proper fee recipient address instead of using whatever fee recipient is provided during registration.
@@ -168,7 +163,7 @@ If `currentEpoch` is less than or equal to `optOutEpoch + 1`, then **the fee rec
 
 ## Getting the Node's Fee Distributor Contract Address
 
-If the node has never opted into the Smoothing Pool, has opted out and has passed the front-running cooldown window, their fee recipient should be the node's unique fee distributor contract.
+If the node has never opted into the Smoothing Pool, or has opted out and has passed the front-running cooldown window, then their fee recipient should be the node's unique fee distributor contract.
 
 The fee distributor contract address can be retrieved as follows:
 
