@@ -487,7 +487,7 @@ minipoolShare = minipoolShare * goodAttestations / (goodAttestations + missedAtt
 Finally, scale this by the minipool's active slots:
 
 ```go
-minipoolShare = minipoolShare * minipoolActiveSlots / (targetBcSlot - firstIntervalSlot)
+minipoolShare = minipoolShare * minipoolActiveSlots / (targetBcSlot - bnStartBlock)
 ```
 
 Add up all of the individual `minipoolShare` values to determine the `totalMinipoolShare`.
