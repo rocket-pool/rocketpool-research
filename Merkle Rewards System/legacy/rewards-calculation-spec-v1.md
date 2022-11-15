@@ -1,32 +1,11 @@
-# [Draft] Specification for Rewards Calculation
+# Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
 
 
 ## Version
 
-This describes **v2** of the rewards calculation ruleset.
-
-
-### Changes since `v1`
-
-The following updates have been made from [v1](./legacy/rewards-calculation-spec-v1.md) of the spec.
-
-
-#### Changes
-
-- Minipools with validators that meet the following criteria on the Beacon Chain are **no longer** included in rewards calculation:
-  - The validator didn't exist on the Beacon Chain as of the selected Beacon Chain end slot
-  - The validator existed but was in either the `pending_initialized` or the `pending_queued` state as of the selected Beacon Chain end slot
-- Each minipool's Smoothing Pool earnings are now pro-rated by the minipool's number of **active slots** divided by the number of **total slots** in the interval. See [Calculating Active Slots](#calculating-active-slots) for a detailed description.
-  - An **active slot** is one that occurred on or after the validator's `activation_epoch`, and on or before the validator's `exit_epoch`.
-  - If the validator's activation epoch occurred before the selected Beacon Chain start slot and its exit epoch occurred after the selected Beacon Chain end slot, it will be eligible for all of the rewards calculated via other prorating measures.
-
-
-#### Clarifications
-
-- Nodes that have below 10% collateral are **still eligible** for Smoothing Pool rewards. Their eligibility is removed *only* for RPL collateral rewards.
-- Minipools that missed all of their attestations, or were otherwise inactive for an interval, will now be included in the minipool performance file generated as part of the rewards interval artifacts.
+This describes **v1** of the rewards calculation ruleset.
 
 ---
 
@@ -365,8 +344,6 @@ totalIntervalDuration := targetElBlock.Time / elStartBlock.Time
 
 For each registered node (the gathering of which was shown previously in the RPL calculation), assess its eligibility for Smoothing Pool rewards.
 
-**NOTE:** nodes that have below 10% RPL collateral are *still eligible* for Smoothing Pool rewards as of ruleset v2.
-
 Get the opt-in status and the last time of a Smoothing Pool status change for the node:
 ```go
 isOptedIn := RocketNodeManager.getSmoothingPoolRegistrationState(nodeAddress)
@@ -414,19 +391,6 @@ penaltyCount := RocketNetworkPenalties.getPenaltyCount(minipoolAddress)
 
 If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible.
 Remove it from the list of eligible nodes and ignore it.
-
-
-### Calculating Active Slots
-
-For each `staking` minipool in each eligible node, calculate the number of **active slots** in the interval for that minipool's validator:
-
-1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
-   1. If the validator does not exist at that slot (its status is empty), or if its status is `pending_initialized` or `pending_queued`, it is not eligible for any rewards. Ignore it in the following calculations.
-2. Check the validator's `activation_epoch` and calculate the first slot for it. Assign this value to `minipoolStartSlot`.
-   1. If `minipoolStartSlot` is *before* the first slot of this interval, set `minipoolStartSlot` to the first slot of this interval.
-3. Check the validator's `exit_epoch` and calculate the first slot for it. Assign this value to `minipoolEndSlot`.
-   1. If `minipoolEndSlot` is *after* `targetBcSlot`, set `minipoolEndSlot` to `targetBcSlot`.
-4. The number of **active slots** is `minipoolEndSlot - minipoolStartSlot`. 
 
 
 ### Calculating Attestation Performance
@@ -482,12 +446,6 @@ Next, scale this by its `participationRate` (the ratio of `goodAttestations` to 
 
 ```go
 minipoolShare = minipoolShare * goodAttestations / (goodAttestations + missedAttestations)
-```
-
-Finally, scale this by the minipool's active slots:
-
-```go
-minipoolShare = minipoolShare * minipoolActiveSlots / (targetBcSlot - firstIntervalSlot)
 ```
 
 Add up all of the individual `minipoolShare` values to determine the `totalMinipoolShare`.
