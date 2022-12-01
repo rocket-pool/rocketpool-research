@@ -18,9 +18,18 @@ The following updates have been made from [v1](./legacy/rewards-calculation-spec
 - Minipools with validators that meet the following criteria on the Beacon Chain are **no longer** included in rewards calculation:
   - The validator didn't exist on the Beacon Chain as of the selected Beacon Chain end slot
   - The validator existed but was in either the `pending_initialized` or the `pending_queued` state as of the selected Beacon Chain end slot
-- Each minipool's Smoothing Pool earnings are now pro-rated by the minipool's number of **active slots** divided by the number of **total slots** in the interval. See [Calculating Active Slots](#calculating-active-slots) for a detailed description.
-  - An **active slot** is one that occurred on or after the validator's `activation_epoch`, and on or before the validator's `exit_epoch`.
-  - If the validator's activation epoch occurred before the selected Beacon Chain start slot and its exit epoch occurred after the selected Beacon Chain end slot, it will be eligible for all of the rewards calculated via other prorating measures.
+
+- The pro-rating method for each minipool's Smoothing Pool earnings now considers both the owning node's opt-in / opt-out time, *and* the minipool's `activation_epoch` and `exit_epoch`. This prevents minipools that were just recently activated from claiming a full share. See [Calculating Active Slots](#calculating-active-slots) for a detailed description, but in brief:
+  - Each minipool is assigned a `startSlot` and an `endSlot` for the interval.
+  - The `startSlot` is whichever of the following occurred *latest*:
+    - The Beacon Chain slot at which the node operator opted into the Smoothing Pool
+    - The first slot in the corresponding validator's `activation_epoch`
+    - The first slot of the interval (`bnStartBlock`)
+  - The `endSlot` is whichever of the following occurred *earliest*:
+    - The Beacon Chain slot at which the node operator opted out of the Smoothing Pool
+    - The first slot in the corresponding validator's `exit_epoch`
+    - The end slot of the interval (`targetBcSlot`)
+  - As before, the minipool's rewards are prorated by `(endSlot - startSlot) / (targetBcSlot - bnStartBlock)`.
 
 
 #### Clarifications
@@ -354,18 +363,16 @@ The `bnStartBlock` is the first non-missed slot in the Epoch *after* the Epoch t
 Pre-merge, the `elStartBlock` is simply `previousIntervalEvent.ExecutionBlock + 1`.
 Post-merge, the `elStartBlock` is the EL block that corresponds to `bnStartBlock`.
 
-This makes the Smoothing Pool's duration for this interval equal to:
-
-```go
-totalIntervalDuration := targetElBlock.Time / elStartBlock.Time
-```
-
 
 ### Node Eligibility
 
 For each registered node (the gathering of which was shown previously in the RPL calculation), assess its eligibility for Smoothing Pool rewards.
 
-**NOTE:** nodes that have below 10% RPL collateral are *still eligible* for Smoothing Pool rewards as of ruleset v2.
+Eligibility is now captured with respect to **slots on the Beacon Chain**.
+The first eligible slot is called `nodeStartSlot`.
+The last eligible slot is called `nodeEndSlot`.
+
+**NOTE:** nodes that have below 10% RPL collateral on `targetBcSlot` are *still eligible* for Smoothing Pool rewards as of ruleset v2.
 
 Get the opt-in status and the last time of a Smoothing Pool status change for the node:
 ```go
@@ -379,21 +386,24 @@ Ignore it.
 If the node was opted in **for the entire period**, it is fully eligible for rewards:
 
 ```go
-nodeEligibleSeconds = totalIntervalDuration
+nodeStartSlot := bnStartBlock
+nodeEndSlot := targetBcSlot
 ```
 
 If the node opted in **during the period**, it is *partially* eligible.
 Calculate its eligibility factor as follows:
 
 ```go
-nodeEligibleSeconds = (targetElBlock.Time - statusChangeTime) / totalIntervalDuration
+nodeStartSlot := (statusChangeTime - genesis.data.genesis_time).Seconds() / beaconConfig.data.SECONDS_PER_SLOT // Beacon slot corresponding to the status change
+nodeEndSlot := targetBcSlot
 ```
 
 If the node opted out **during the period**, it is *partially* eligible.
 Calculate its eligibility factor as follows:
 
 ```go
-nodeEligibleSeconds = (statusChangeTime - elStartBlock.Time) / totalIntervalDuration
+nodeStartSlot := bnStartBlock
+nodeEndSlot := (statusChangeTime - genesis.data.genesis_time).Seconds() / beaconConfig.data.SECONDS_PER_SLOT // Beacon slot corresponding to the status change
 ```
 
 Next, look at the minipools for the node with the following contract methods:
@@ -422,10 +432,12 @@ For each `staking` minipool in each eligible node, calculate the number of **act
 
 1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
    1. If the validator does not exist at that slot (its status is empty), or if its status is `pending_initialized` or `pending_queued`, it is not eligible for any rewards. Ignore it in the following calculations.
-2. Check the validator's `activation_epoch` and calculate the first slot for it. Assign this value to `minipoolStartSlot`.
-   1. If `minipoolStartSlot` is *before* the first slot of this interval, set `minipoolStartSlot` to the first slot of this interval.
-3. Check the validator's `exit_epoch` and calculate the first slot for it. Assign this value to `minipoolEndSlot`.
-   1. If `minipoolEndSlot` is *after* `targetBcSlot`, set `minipoolEndSlot` to `targetBcSlot`.
+2. Check the validator's `activation_epoch` and calculate the first slot for it.
+   1. If the first slot is *before* `nodeStartSlot`, set `minipoolStartSlot` equal to `nodeStartSlot`.
+   2. If the first slot is *after* `nodeStartSlot`, set `minipoolStartSlot` equal to this slot instead.
+3. Check the validator's `exit_epoch` and calculate the first slot for it.
+   1. If the first slot is *before* `nodeEndSlot`, set `minipoolEndSlot` equal to this slot.
+   2. If the first slot is *after* `nodeEndSlot`, set `minipoolEndSlot` equal to `nodeEndSlot`.
 4. The number of **active slots** is `minipoolEndSlot - minipoolStartSlot`. 
 
 
@@ -470,24 +482,18 @@ For each eligible minipool, start with a base `minipoolShare` of 100% plus its f
 minipoolShare := _100Percent + minipoolFee
 ```
 
-Now, scale this by its `eligibilityFactor` (the amount of time it was opted into the Smoothing Pool):
+Now, scale this by its active slots (the amount of time it was both opted into the Smoothing Pool and actively attesting):
 
 ```go
-if nodeEligibleSeconds < totalIntervalDuration {
-    minipoolShare = minipoolShare * nodeEligibleSeconds / totalIntervalDuration
+if (minipoolEndSlot - minipoolStartSlot) < (targetBcSlot - bnStartBlock) {
+    minipoolShare = minipoolShare * (minipoolEndSlot - minipoolStartSlot) / (targetBcSlot - bnStartBlock)
 }
 ```
 
-Next, scale this by its `participationRate` (the ratio of `goodAttestations` to total attestations):
+Finally, scale this by its `participationRate` (the ratio of `goodAttestations` to total attestations):
 
 ```go
 minipoolShare = minipoolShare * goodAttestations / (goodAttestations + missedAttestations)
-```
-
-Finally, scale this by the minipool's active slots:
-
-```go
-minipoolShare = minipoolShare * minipoolActiveSlots / (targetBcSlot - bnStartBlock)
 ```
 
 Add up all of the individual `minipoolShare` values to determine the `totalMinipoolShare`.
