@@ -5,18 +5,37 @@ This document serves as a formal specification for the way that the rewards inte
 
 ## Version
 
-This describes **v3** of the rewards calculation ruleset.
+This describes **v2** of the rewards calculation ruleset.
 
 
-### Changes since `v2`
+### Changes since `v1`
 
-The following updates have been made from [v2](./legacy/rewards-calculation-spec-v2.md) of the spec.
+The following updates have been made from [v1](./legacy/rewards-calculation-spec-v1.md) of the spec.
 
 
 #### Changes
 
-- NEW: Bullet 4 in [Calculating Active Slots](#calculating-active-slots)
-  - If a minipool's `minipoolStartSlot` occurs *after* its parent node's `nodeEndSlot` (i.e., the minipool was activated after the node left the Smoothing Pool), it is **ineligible** for Smoothing Pool rewards during that period and can be removed from consideration as though it weren't active.
+- Minipools with validators that meet the following criteria on the Beacon Chain are **no longer** included in rewards calculation:
+  - The validator didn't exist on the Beacon Chain as of the selected Beacon Chain end slot
+  - The validator existed but was in either the `pending_initialized` or the `pending_queued` state as of the selected Beacon Chain end slot
+
+- The pro-rating method for each minipool's Smoothing Pool earnings now considers both the owning node's opt-in / opt-out time, *and* the minipool's `activation_epoch` and `exit_epoch`. This prevents minipools that were just recently activated from claiming a full share. See [Calculating Active Slots](#calculating-active-slots) for a detailed description, but in brief:
+  - Each minipool is assigned a `startSlot` and an `endSlot` for the interval.
+  - The `startSlot` is whichever of the following occurred *latest*:
+    - The Beacon Chain slot at which the node operator opted into the Smoothing Pool
+    - The first slot in the corresponding validator's `activation_epoch`
+    - The first slot of the interval (`bnStartBlock`)
+  - The `endSlot` is whichever of the following occurred *earliest*:
+    - The Beacon Chain slot at which the node operator opted out of the Smoothing Pool
+    - The first slot in the corresponding validator's `exit_epoch`
+    - The end slot of the interval (`targetBcSlot`)
+  - As before, the minipool's rewards are prorated by `(endSlot - startSlot) / (targetBcSlot - bnStartBlock)`.
+
+
+#### Clarifications
+
+- Nodes that have below 10% collateral are **still eligible** for Smoothing Pool rewards. Their eligibility is removed *only* for RPL collateral rewards.
+- Minipools that missed all of their attestations, or were otherwise inactive for an interval, will now be included in the minipool performance file generated as part of the rewards interval artifacts.
 
 ---
 
@@ -419,8 +438,7 @@ For each `staking` minipool in each eligible node, calculate the number of **act
 3. Check the validator's `exit_epoch` and calculate the first slot for it.
    1. If the first slot is *before* `nodeEndSlot`, set `minipoolEndSlot` equal to this slot.
    2. If the first slot is *after* `nodeEndSlot`, set `minipoolEndSlot` equal to `nodeEndSlot`.
-4. If `minipoolStartSlot` occurs *after* its parent node's `nodeEndSlot` (i.e., the minipool was activated after the node left the Smoothing Pool), it is not eligible for any rewards. Ignore it in the following calculations.
-5. The number of **active slots** is `minipoolEndSlot - minipoolStartSlot`. 
+4. The number of **active slots** is `minipoolEndSlot - minipoolStartSlot`. 
 
 
 ### Calculating Attestation Performance
