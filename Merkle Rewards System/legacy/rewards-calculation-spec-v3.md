@@ -1,25 +1,22 @@
-# [DRAFT] Specification for Rewards Calculation
+# Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
 
 
 ## Version
 
-This describes **v4** of the rewards calculation ruleset.
+This describes **v3** of the rewards calculation ruleset.
 
 
-### Changes since `v3`
+### Changes since `v2`
 
-The following updates have been made from [v3](./legacy/rewards-calculation-spec-v3.md) of the spec.
+The following updates have been made from [v2](./legacy/rewards-calculation-spec-v2.md) of the spec.
 
 
 #### Changes
 
-- In [Collateral Rewards](#collateral-rewards), the way `nodeEffectiveStake` is determined has changed. Previously, it relied on this contract call:
-    ```go
-     nodeEffectiveStake := RocketNodeStaking.getNodeEffectiveRPLStake(nodeAddress)
-     ```
-     Now, it is calculated explicitly for each node using the number of **active** minipools according to the Beacon Chain, not according to the contracts. Please see that section for more details on the new calculation method. 
+- NEW: Bullet 4 in [Calculating Active Slots](#calculating-active-slots)
+  - If a minipool's `minipoolStartSlot` occurs *after* its parent node's `nodeEndSlot` (i.e., the minipool was activated after the node left the Smoothing Pool), it is **ineligible** for Smoothing Pool rewards during that period and can be removed from consideration as though it weren't active.
 
 ---
 
@@ -195,46 +192,14 @@ for i = 0; i < nodeCount; i++ {
 }
 ```
 
-For each node, retrieve the **effective RPL stake**.
-This should be calculated as follows.
-
-For each minipool belonging to the node, get its current `state`:
+For each node, retrieve the **effective RPL stake**:
 
 ```go
-state := minipool.getStatus()
+nodeEffectiveStake := RocketNodeStaking.getNodeEffectiveRPLStake(nodeAddress)
 ```
 
-Ignore minipools that are not in the `staking` state.
-
-Define `eligibleMinipools` as the count of minipools that are viable for RPL rewards.
-Start with it set to `0`.
-For each `staking` minipool, check if it was active at the end of the interval:
-
-1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
-2. Get the `activation_epoch` and `exit_epoch` for the validator.
-3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch, it is eligible. Add 1 to `eligibleMinipools`.
-
-Next, calculate the minimum and maximum RPL collateral levels based on the ETH/RPL ratio reported by the protocol:
-```go
-ratio := RocketNetworkPrices.getRPLPrice()
-minCollateralFraction := RocketDAOProtocolSettingsNode.getMinimumPerMinipoolStake() // e.g., 10% in wei
-maxCollateralFraction := RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() // e.g., 150% in wei
-minCollateral := 16 * minCollateralFraction * eligibleMinipools / ratio
-maxCollateral := 16 * maxCollateralFraction * eligibleMinipools / ratio 
-``` 
-
-Now, calculate the node's effective RPL stake (`nodeEffectiveStake`) based on the above:
-
-```go
-nodeStake := RocketNodeStaking.getNodeRPLStake(nodeAddress)
-if nodeStake < minCollateral {
-    nodeEffectiveStake := 0
-} else if nodeStake > maxCollateral {
-    nodeEffectiveStake := maxCollateral
-} else {
-    nodeEffectiveStake := nodeStake
-}
-```
+This returns the effective amount of RPL, in **wei**, that is staked by the node.
+The logic surrounding this value (such as the state of each minipool in the node) is handled by the smart contracts, so this value does not need to be modified.
 
 Next, scale the `nodeEffectiveStake` by how long the node has been registered.
 This prorates RPL rewards for new nodes that haven't been active for a full rewards interval, so they only receive a corresponding fraction of the rewards based on how long they've been registered.
