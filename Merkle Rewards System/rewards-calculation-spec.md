@@ -219,8 +219,8 @@ Next, calculate the minimum and maximum RPL collateral levels based on the ETH/R
 ratio := RocketNetworkPrices.getRPLPrice()
 minCollateralFraction := RocketDAOProtocolSettingsNode.getMinimumPerMinipoolStake() // e.g., 10% in wei
 maxCollateralFraction := RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() // e.g., 150% in wei
-minCollateral := 16 * minCollateralFraction * eligibleMinipools / ratio
-maxCollateral := 16 * maxCollateralFraction * eligibleMinipools / ratio 
+minCollateral := 16e18 * minCollateralFraction * eligibleMinipools / ratio
+maxCollateral := 16e18 * maxCollateralFraction * eligibleMinipools / ratio
 ``` 
 
 Now, calculate the node's effective RPL stake (`nodeEffectiveStake`) based on the above:
