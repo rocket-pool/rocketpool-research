@@ -1,22 +1,25 @@
-# [DRAFT] Specification for Rewards Calculation
+# Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
 
 
 ## Version
 
-This describes **v5** of the rewards calculation ruleset.
+This describes **v4** of the rewards calculation ruleset.
 
 
-### Changes since `v4`
+### Changes since `v3`
 
-The following updates have been made from [v4](./legacy/rewards-calculation-spec-v4.md) of the spec.
+The following updates have been made from [v3](./legacy/rewards-calculation-spec-v3.md) of the spec.
 
 
 #### Changes
 
-- The `minCollateral` and `maxCollateral` for a node's RPL rewards (defined in [Collateral Rewards](#collateral-rewards)) now use the amount of ETH borrowed from the staking minipool on a per-minipool basis, instead of a flat 16 ETH.
-- The `minipoolShare` of a minipool's Smoothing Pool rewards in [Calculating Node Rewards](#calculating-node-rewards) is now multiplied by the amount of ETH bonded by the node operator for that minipool, to help distinguish between an 8 ETH and a 16 ETH bond.
+- In [Collateral Rewards](#collateral-rewards), the way `nodeEffectiveStake` is determined has changed. Previously, it relied on this contract call:
+    ```go
+     nodeEffectiveStake := RocketNodeStaking.getNodeEffectiveRPLStake(nodeAddress)
+     ```
+     Now, it is calculated explicitly for each node using the number of **active** minipools according to the Beacon Chain, not according to the contracts. Please see that section for more details on the new calculation method. 
 
 ---
 
@@ -34,7 +37,6 @@ The following updates have been made from [v4](./legacy/rewards-calculation-spec
 
 As with the original protocol, rewards in Redstone are minted and recorded in discrete **intervals**.
 Each interval is determined by an on-chain setting that specifies the amount of time that must pass from the previous interval until the next interval is ready to be generated.
-
 
 ### Time of Eligibility
 
@@ -204,25 +206,21 @@ state := minipool.getStatus()
 
 Ignore minipools that are not in the `staking` state.
 
-Define `eligibleBorrowedEth` as the total amount of ETH borrowed by the node operator from the staking pool for eligible minipools.
+Define `eligibleMinipools` as the count of minipools that are viable for RPL rewards.
 Start with it set to `0`.
 For each `staking` minipool, check if it was active at the end of the interval:
 
 1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
 2. Get the `activation_epoch` and `exit_epoch` for the validator.
-3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch, it is eligible. Add the amount of ETH borrowed by the node operator for this minipool to `eligibleBorrowedEth`:
-    ```go
-    borrowedEth := minipool.getUserDepositBalance()
-    eligibleBorrowedEth += borrowedEth
-    ```
+3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch, it is eligible. Add 1 to `eligibleMinipools`.
 
 Next, calculate the minimum and maximum RPL collateral levels based on the ETH/RPL ratio reported by the protocol:
 ```go
 ratio := RocketNetworkPrices.getRPLPrice()
 minCollateralFraction := RocketDAOProtocolSettingsNode.getMinimumPerMinipoolStake() // e.g., 10% in wei
 maxCollateralFraction := RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() // e.g., 150% in wei
-minCollateral := eligibleBorrowedEth * minCollateralFraction / ratio
-maxCollateral := eligibleBorrowedEth * maxCollateralFraction / ratio
+minCollateral := 16e18 * minCollateralFraction * eligibleMinipools / ratio
+maxCollateral := 16e18 * maxCollateralFraction * eligibleMinipools / ratio
 ``` 
 
 Now, calculate the node's effective RPL stake (`nodeEffectiveStake`) based on the above:
@@ -507,13 +505,6 @@ Now, scale this by its active slots (the amount of time it was both opted into t
 if (minipoolEndSlot - minipoolStartSlot) < (targetBcSlot - bnStartBlock) {
     minipoolShare = minipoolShare * (minipoolEndSlot - minipoolStartSlot) / (targetBcSlot - bnStartBlock)
 }
-```
-
-Next, multiply this by the amount of ETH bonded by the node operator for this minipool:
-
-```go
-bondedEth := minipool.getNodeDepositBalance()
-minipoolShare *= bondedEth
 ```
 
 Finally, scale this by its `participationRate` (the ratio of `goodAttestations` to total attestations):
