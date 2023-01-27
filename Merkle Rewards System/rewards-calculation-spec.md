@@ -15,7 +15,7 @@ The following updates have been made from [v4](./legacy/rewards-calculation-spec
 
 #### Changes
 
-- The `minCollateral` and `maxCollateral` for a node's RPL rewards (defined in [Collateral Rewards](#collateral-rewards)) now use the amount of ETH borrowed from the staking minipool on a per-minipool basis, instead of a flat 16 ETH.
+- The `minCollateral` and `maxCollateral` for a node's RPL rewards (defined in [Collateral Rewards](#collateral-rewards)) now use the amount of ETH borrowed from the staking pool and bonded for the minipool on a per-minipool basis, instead of a flat 16 ETH for both.
 - The `minipoolShare` of a minipool's Smoothing Pool rewards in [Calculating Node Rewards](#calculating-node-rewards) is now multiplied by the amount of ETH bonded by the node operator for that minipool, to help distinguish between an 8 ETH and a 16 ETH bond.
 
 ---
