@@ -205,16 +205,24 @@ state := minipool.getStatus()
 Ignore minipools that are not in the `staking` state.
 
 Define `eligibleBorrowedEth` as the total amount of ETH borrowed by the node operator from the staking pool for eligible minipools.
-Start with it set to `0`.
+Define `eligibleBondedEth` as the total amount of ETH the node operator has bonded for its eligible minipools.
+Start with both set to `0`.
+
 For each `staking` minipool, check if it was active at the end of the interval:
 
 1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
 2. Get the `activation_epoch` and `exit_epoch` for the validator.
-3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch, it is eligible. Add the amount of ETH borrowed by the node operator for this minipool to `eligibleBorrowedEth`:
-    ```go
-    borrowedEth := minipool.getUserDepositBalance()
-    eligibleBorrowedEth += borrowedEth
-    ```
+3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch, it is eligible.
+   1. Add the amount of ETH borrowed by the node operator for this minipool to `eligibleBorrowedEth`:
+        ```go
+        borrowedEth := minipool.getUserDepositBalance()
+        eligibleBorrowedEth += borrowedEth
+        ```
+   2. Add the amount of ETH bonded by the node operator for this minipool to `eligibleBondedEth`:
+        ```go
+        bondedEth := minipool.getNodeDepositBalance()
+        eligibleBondedEth += bondedEth
+        ```
 
 Next, calculate the minimum and maximum RPL collateral levels based on the ETH/RPL ratio reported by the protocol:
 ```go
@@ -222,8 +230,10 @@ ratio := RocketNetworkPrices.getRPLPrice()
 minCollateralFraction := RocketDAOProtocolSettingsNode.getMinimumPerMinipoolStake() // e.g., 10% in wei
 maxCollateralFraction := RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() // e.g., 150% in wei
 minCollateral := eligibleBorrowedEth * minCollateralFraction / ratio
-maxCollateral := eligibleBorrowedEth * maxCollateralFraction / ratio
+maxCollateral := eligibleBondedEth * maxCollateralFraction / ratio
 ``` 
+
+Note that `minCollateral` is based on the amount *borrowed*, and `maxCollateral` is based on the amount *bonded*.
 
 Now, calculate the node's effective RPL stake (`nodeEffectiveStake`) based on the above:
 
