@@ -16,7 +16,7 @@ The following updates have been made from [v4](./legacy/rewards-calculation-spec
 #### Changes
 
 - The `minCollateral` and `maxCollateral` for a node's RPL rewards (defined in [Collateral Rewards](#collateral-rewards)) now use the amount of ETH borrowed from the staking pool and bonded for the minipool on a per-minipool basis, instead of a flat 16 ETH for both.
-- The `minipoolShare` of a minipool's Smoothing Pool rewards in [Calculating Node Rewards](#calculating-node-rewards) is now multiplied by the amount of ETH bonded by the node operator for that minipool, to help distinguish between an 8 ETH and a 16 ETH bond.
+- The entire process for calculating Smoothing Pool ETH rewards for nodes has been redesigned to make it easier to understand and compatible with the Atlas upgrade, which makes the ETH bonds for minipools variable.
 
 ---
 
@@ -394,162 +394,133 @@ Post-merge, the `elStartBlock` is the EL block that corresponds to `bnStartBlock
 
 ### Node Eligibility
 
-For each registered node (the gathering of which was shown previously in the RPL calculation), assess its eligibility for Smoothing Pool rewards.
-
-Eligibility is now captured with respect to **slots on the Beacon Chain**.
-The first eligible slot is called `nodeStartSlot`.
-The last eligible slot is called `nodeEndSlot`.
-
-**NOTE:** nodes that have below 10% RPL collateral on `targetBcSlot` are *still eligible* for Smoothing Pool rewards as of ruleset v2.
-
-Get the opt-in status and the last time of a Smoothing Pool status change for the node:
-```go
-isOptedIn := RocketNodeManager.getSmoothingPoolRegistrationState(nodeAddress)
-statusChangeTime := RocketNodeManager.getSmoothingPoolRegistrationChanged(nodeAddress) // Timestamp of the last opt-in or opt-out operation
-```
-
-If the node wasn't opted in **at all** (at any point) during this interval, it is not eligible.
-Ignore it.
-
-If the node was opted in **for the entire period**, it is fully eligible for rewards:
-
-```go
-nodeStartSlot := bnStartBlock
-nodeEndSlot := targetBcSlot
-```
-
-If the node opted in **during the period**, it is *partially* eligible.
-Calculate its eligibility factor as follows:
-
-```go
-nodeStartSlot := (statusChangeTime - genesis.data.genesis_time).Seconds() / beaconConfig.data.SECONDS_PER_SLOT // Beacon slot corresponding to the status change
-nodeEndSlot := targetBcSlot
-```
-
-If the node opted out **during the period**, it is *partially* eligible.
-Calculate its eligibility factor as follows:
-
-```go
-nodeStartSlot := bnStartBlock
-nodeEndSlot := (statusChangeTime - genesis.data.genesis_time).Seconds() / beaconConfig.data.SECONDS_PER_SLOT // Beacon slot corresponding to the status change
-```
+For each registered node (the gathering of which was shown previously in the RPL calculation), observe the status and penalty count on each of its minipools:
 
 Next, look at the minipools for the node with the following contract methods:
 ```go
 nodeMinipoolCount := RocketMinipoolManager.getNodeMinipoolCount(nodeAddress)
 nodeMinipools := address[nodeMinipoolCount]
 for i := 0; i < nodeMinipoolCount; i++ {
-    nodeMinipools[i] = RocketMinipoolManager.getNodeMinipoolAt(nodeAddress, i)
+    minipool := RocketMinipoolManager.getNodeMinipoolAt(nodeAddress, i)
+    state := minipool.getStatus()
+    penaltyCount := RocketNetworkPenalties.getPenaltyCount(minipoolAddress)
 }
 ```
 
-Get the current `state` and `penaltyCount` for each minipool:
-
-```go
-state := minipool.getStatus()
-penaltyCount := RocketNetworkPenalties.getPenaltyCount(minipoolAddress)
-```
-
-If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible.
+If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible for Smoothing Pool rewards.
 Remove it from the list of eligible nodes and ignore it.
 
+If the node has **at least one `staking` minipool**, then it is eligible for calculation. Otherwise, remove it from the list of eligible nodes and ignore it.
 
-### Calculating Active Slots
 
-For each `staking` minipool in each eligible node, calculate the number of **active slots** in the interval for that minipool's validator:
+### Minipool Eligibility
+
+In addition to filtering out ineligible nodes, minipools must also be filtered.
+This is done by removing minipools that exited **before** the interval starts, or are scheduled to activate **after** the interval ends.
+
+For each `staking` minipool in each eligible node, check the `activation_epoch` and `exit_epoch` for that minipool's validator:
 
 1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
    1. If the validator does not exist at that slot (its status is empty), or if its status is `pending_initialized` or `pending_queued`, it is not eligible for any rewards. Ignore it in the following calculations.
-2. Check the validator's `activation_epoch` and calculate the first slot for it.
-   1. If the first slot is *before* `nodeStartSlot`, set `minipoolStartSlot` equal to `nodeStartSlot`.
-   2. If the first slot is *after* `nodeStartSlot`, set `minipoolStartSlot` equal to this slot instead.
-3. Check the validator's `exit_epoch` and calculate the first slot for it.
-   1. If the first slot is *before* `nodeEndSlot`, set `minipoolEndSlot` equal to this slot.
-   2. If the first slot is *after* `nodeEndSlot`, set `minipoolEndSlot` equal to `nodeEndSlot`.
-4. If `minipoolStartSlot` occurs *after* its parent node's `nodeEndSlot` (i.e., the minipool was activated after the node left the Smoothing Pool), it is not eligible for any rewards. Ignore it in the following calculations.
-5. The number of **active slots** is `minipoolEndSlot - minipoolStartSlot`. 
+2. If the validator's `activation_epoch` is *after* `targetBcSlot`, it is not eligible. Remove it.
+3. If the validator's `exit_epoch` is *before* `bnStartBlock`, it is not eligible. Remove it.
 
 
-### Calculating Attestation Performance
+### Node Opt-In / Out Timing
 
-For each `staking` minipool in each eligible node, process the attestation performance of the minipool to gauge its `participationRate`.
+For each eligible node, determine the **opt-in time** and **opt-out time**.
+These will be used during attestation performance to determine if a given attestation should count towards the Smoothing Pool rewards or not.
+
+Start by retreiving the opt-in status and the last time of status change for the node:
+```go
+isOptedIn := RocketNodeManager.getSmoothingPoolRegistrationState(nodeAddress)
+statusChangeTime := rocketNodeManager.getSmoothingPoolRegistrationChanged(nodeAddress) // The contracts provide the Unix timestamp, in seconds
+```
+
+Use these details to determine the opt-in and opt-out time:
+
+```go
+farPastTime := 0 // Some arbitrary timestamp that occurred before the start of the interval; the Unix epoch is fine for this
+farFutureTime := 1e18 // Some arbitrary timestamp that will occur far after the end of the interval
+
+if isOptedIn {
+    optInTime = statusChangeTime
+    optOutTime = farFutureTime
+} else {
+    optInTime = farPastTime
+    optOutTime = statusChangeTime
+}
+```
+
+
+### Calculating Attestation Performance and Minipool Scores
+
+Start by defining the following variables:
+- `totalMinipoolScore`, which cumulatively tracks the aggregated minpool scores for each attestation, starting at `0`
+- `successfulAttestations` which tracks the number of successful attestations that were eligible for Smoothing Pool rewards, starting at `0`
+- `minipoolScores`, a map of minipools to their individual cumulative minipool scores 
+
+For each eligible minipool in each eligible node, process the attestation performance of the minipool to gauge its `minipoolScore`.
 
 Attestation performance is calculated on an Epoch-by-Epoch basis, from the first Epoch to the last Epoch of the interval, as follows for each Epoch:
 
 1. Get the **attestation committees** for the Epoch (e.g., `/eth/v1/beacon/states/head/committees?epoch=<epochIndex>`)
-2. Traverse the list of slots and committees, noting the `slotIndex`, `committeeIndex`, and `position` of an attestation assignment for the minipool.
-3. Get the block at `slotIndex` (e.g., `/eth/v2/beacon/blocks/<slotIndex>`)
-4. Look at the attestations for the matching `slotIndex`, `committeeIndex`, and `position`.
-   1. If it was recorded, this attestation was successful. Add it to a running list of `goodAttestations`.
-   2. If not, try the next slot. Continue doing this for up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`). If it isn't in any of them, the attestation was missed. Add it to a running list of `missedAttestations`.
+2. Traverse the list of slots and committees, noting the `slotIndex`, `committeeIndex`, and `position` of an attestation assignment for the minipool. Ignore validators that do not correspond to Rocket Pool minipools.
+3. Get the block at `slotIndex` (e.g., `/eth/v2/beacon/blocks/<slotIndex>`).
+4. Get the time of the block:
+    ```go
+    blockTime := genesisTime + secondsPerSlot * slotIndex
+    ```
+5. For the minipool corresponding to `position`: if `blockTime` occurred *before* the parent node's `optInTime` or *after* the parent node's `optOutTime`, this attestation is not eligible for Smoothing Pool rewards. Ignore it.
+6. Look at the attestations in the subsequent blocks with matching `slotIndex`, `committeeIndex`, and `position`. Start at the block directly after `slotIndex`, and look up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`) from `slotIndex`.
+   1. If one was recorded in *any of these blocks*, this attestation was successful. Calculate the `minipoolScore` for this attestation as described below.
+   2. If the attestation was not found, it was missed. Add it to a running list of `missedAttestations`.
+
+When a successful attestation is found, calculate the `minipoolScore` awarded to the minipool for that attestation:.
+
+1. Add the attestation to a running list of `goodAttestations` for the minipool.
+2. Get the amount of ETH bonded by the node operator for this minipool on this specific block, using the block's timestamp and the timestamp of the minipool's last bond reduction:
+    ```go
+    currentBond := minipool.getNodeDepositBalance()
+    previousBond := RocketMinipoolBondReducer.getLastBondReductionPrevValue(minipool.Address)
+    lastReduceTime := RocketMinipoolBondReducer.getLastBondReductionTime(minipool.Address)
+
+    bond := currentBond
+    if lastReduceTime > 0 && lastReduceTime > blockTime {
+        bond = previousBond // If this block occurred before the bond was reduced, use the old value
+    }
+    ```
+3. Calculate the `minipoolScore` using the minipool's bond amount and node fee:
+    ```go
+    fee := minipool.getNodeFee()
+    minipoolScore := (1e18 - fee) * bond / 32e18 + fee // The "ideal" fractional amount of ETH awarded to the NO for this attestation, out of 1
+    ```
+4. Add `minipoolScore` to the minipool's running total, and the cumulative total for all minipools:
+    ```go
+    minipoolScores[minipool.Address] += minipoolScore
+    totalMinipoolScore += minipoolScore
+    successfulAttestations++
+    ``` 
 
 
 ### Calculating Node Rewards
 
-Start by calculating the average fee (commission) across all of the eligible minipools, which can be retrieved with the following contract function per minipool:
-
+Start by calculating the "ideal" amount of ETH that would go to node operators, based on their cumulative fractional scores:
 ```go
-minipoolFee := minipool.getNodeFee()
+totalNodeOpShare := smoothingPoolBalance * totalMinipoolScore / successfulAttestations
 ```
 
-Call it the `averageFee`.
-
-Next, calculate the amount of ETH that should go to the pool stakers (`poolStakerShare`), and the amount that goes to all of the node operators (`nodeOpShare`) based on this average fee:
-
+Next, for each minipool, calculate the minipool's share of this ideal ETH total and add it to a cumulative total of ETH awarded to minipools (which accounts for loss of precision due to integer division truncation):
 ```go
-halfSmoothingPoolBalance := smoothingPoolBalance / 2
-commissionAmount := halfSmoothingPoolBalance * averageFee / _100Percent
-poolStakerShare := halfSmoothingPool - commissionAmount
-nodeOpShare := smoothingPoolBalance - poolStakerShare
+minipoolEth := totalNodeOpShare * minipoolScores[minipool.Address] / totalMinipoolScore
+nodeEth[minipool.OwningNode] += minipoolEth
+totalEthForMinipools += minipoolEth
 ```
+where `nodeEth` is the true amount of ETH awarded to each node.
 
-As with RPL rewards, these are not the final values - they simply serve as a reference when calculating each node operator's share.
-
-For each eligible minipool, start with a base `minipoolShare` of 100% plus its fee (for example, a 15% commission minipool would start with a base share of 115):
-
+Now, calculate the final pool staker balance (which will act as a buffer and capture any lost minipool ETH due to integer division):
 ```go
-minipoolShare := _100Percent + minipoolFee
-```
-
-Now, scale this by its active slots (the amount of time it was both opted into the Smoothing Pool and actively attesting):
-
-```go
-if (minipoolEndSlot - minipoolStartSlot) < (targetBcSlot - bnStartBlock) {
-    minipoolShare = minipoolShare * (minipoolEndSlot - minipoolStartSlot) / (targetBcSlot - bnStartBlock)
-}
-```
-
-Next, multiply this by the amount of ETH bonded by the node operator for this minipool:
-
-```go
-bondedEth := minipool.getNodeDepositBalance()
-minipoolShare *= bondedEth
-```
-
-Finally, scale this by its `participationRate` (the ratio of `goodAttestations` to total attestations):
-
-```go
-minipoolShare = minipoolShare * goodAttestations / (goodAttestations + missedAttestations)
-```
-
-Add up all of the individual `minipoolShare` values to determine the `totalMinipoolShare`.
-
-Using this, the share of the Smoothing Pool ETH per minipool can be calculated as follows:
-
-```go
-minipoolEth := nodeOpShare * minipoolShare / totalMinipoolShare
-```
-
-Add up the `minipoolEth` for each node's minipools.
-This is the **total amount of ETH awarded to that node:** `nodeSmoothingPoolEth`.
-
-Add up the `minipoolEth` for each minipool.
-This is the **total amount of ETH awarded to all Node Operators:** `totalEthForMinipools`.
-
-Calculate the true value of the ETH awarded to pool stakers:
-
-```go
-truePoolStakerEth := smoothingPoolBalance - totalEthForMinipools
+poolStakerEth := smoothingPoolBalance - totalEthForMinipools
 ```
 
 
