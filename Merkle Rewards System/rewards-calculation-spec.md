@@ -486,7 +486,7 @@ When a successful attestation is found, calculate the `minipoolScore` awarded to
         bond = previousBond // If this block occurred before the bond was reduced, use the old value
     }
     ```
-    This works,since the bond can only be reduced once per interval.
+    This works since the bond can only be reduced once per interval.
 3. Calculate the `minipoolScore` using the minipool's bond amount and node fee:
     ```go
     fee := minipool.getNodeFee()
