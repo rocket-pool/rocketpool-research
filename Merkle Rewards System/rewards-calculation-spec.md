@@ -394,23 +394,19 @@ Post-merge, the `elStartBlock` is the EL block that corresponds to `bnStartBlock
 
 ### Node Eligibility
 
-For each registered node (the gathering of which was shown previously in the RPL calculation), observe the status and penalty count on each of its minipools:
+For each registered node (the gathering of which was shown previously in the RPL calculation), observe the status and penalty count on each of its minipools by using the following contract methods:
 
-Next, look at the minipools for the node with the following contract methods:
 ```go
 nodeMinipoolCount := RocketMinipoolManager.getNodeMinipoolCount(nodeAddress)
-nodeMinipools := address[nodeMinipoolCount]
 for i := 0; i < nodeMinipoolCount; i++ {
     minipool := RocketMinipoolManager.getNodeMinipoolAt(nodeAddress, i)
     state := minipool.getStatus()
     penaltyCount := RocketNetworkPenalties.getPenaltyCount(minipoolAddress)
 }
 ```
-
-If the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible for Smoothing Pool rewards.
-Remove it from the list of eligible nodes and ignore it.
-
 If the node has **at least one `staking` minipool**, then it is eligible for calculation. Otherwise, remove it from the list of eligible nodes and ignore it.
+
+If for any minipool the `state` is `staking` and the `penaltyCount` is **3 or more**, this node is a cheater and is not eligible for Smoothing Pool rewards. Remove it from the list of eligible nodes and ignore it.
 
 
 ### Minipool Eligibility
@@ -456,8 +452,8 @@ if isOptedIn {
 ### Calculating Attestation Performance and Minipool Scores
 
 Start by defining the following variables:
-- `totalMinipoolScore`, which cumulatively tracks the aggregated minpool scores for each attestation, starting at `0`
-- `successfulAttestations` which tracks the number of successful attestations that were eligible for Smoothing Pool rewards, starting at `0`
+- `totalMinipoolScore`, which tracks the aggregated minpool scores for each attestation, starting at `0`
+- `successfulAttestations`, which tracks the number of successful attestations that were eligible for Smoothing Pool rewards, starting at `0`
 - `minipoolScores`, a map of minipools to their individual cumulative minipool scores 
 
 For each eligible minipool in each eligible node, process the attestation performance of the minipool to gauge its `minipoolScore`.
@@ -490,6 +486,7 @@ When a successful attestation is found, calculate the `minipoolScore` awarded to
         bond = previousBond // If this block occurred before the bond was reduced, use the old value
     }
     ```
+    This works,since the bond can only be reduced once per interval.
 3. Calculate the `minipoolScore` using the minipool's bond amount and node fee:
     ```go
     fee := minipool.getNodeFee()
