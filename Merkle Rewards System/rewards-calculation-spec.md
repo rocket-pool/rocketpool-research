@@ -505,9 +505,9 @@ When a successful attestation is found, calculate the `minipoolScore` awarded to
 
 ### Calculating Node Rewards
 
-Start by calculating the "ideal" amount of ETH that would go to node operators, based on their cumulative fractional scores:
+Start by calculating the "ideal" amount of ETH that would go to node operators (normalizing `successfulAttestations` into an ETH amount in the process), based on their cumulative fractional scores:
 ```go
-totalNodeOpShare := smoothingPoolBalance * totalMinipoolScore / successfulAttestations
+totalNodeOpShare := smoothingPoolBalance * totalMinipoolScore / (successfulAttestations * 1e18)
 totalEthForMinipools := 0
 ```
 
