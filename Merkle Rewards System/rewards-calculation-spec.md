@@ -508,12 +508,15 @@ When a successful attestation is found, calculate the `minipoolScore` awarded to
 
 ### Calculating Node Rewards
 
-Start by calculating the "ideal" amount of ETH that would go to node operators, based on their cumulative fractional scores:
+Start by calculating the "ideal" amount of ETH that would go to node operators (normalizing `successfulAttestations` into an ETH amount in the process), based on their cumulative fractional scores:
 ```go
-totalNodeOpShare := smoothingPoolBalance * totalMinipoolScore / successfulAttestations
+totalNodeOpShare := smoothingPoolBalance * totalMinipoolScore / (successfulAttestations * 1e18)
+totalEthForMinipools := 0
 ```
 
-Next, for each minipool, calculate the minipool's share of this ideal ETH total and add it to a cumulative total of ETH awarded to minipools (which accounts for loss of precision due to integer division truncation):
+Here we also define a variable `totalEthForMinipools` that will contain the cumulative total ("actual") amount of rewards for all node operators, which is initialized to 0.
+
+Next, for each minipool, calculate the minipool's share of this ideal ETH total and add it to the cumulative total:
 ```go
 minipoolEth := totalNodeOpShare * minipoolScores[minipool.Address] / totalMinipoolScore
 nodeEth[minipool.OwningNode] += minipoolEth
@@ -521,7 +524,7 @@ totalEthForMinipools += minipoolEth
 ```
 where `nodeEth` is the true amount of ETH awarded to each node.
 
-Now, calculate the final pool staker balance (which will act as a buffer and capture any lost minipool ETH due to integer division):
+Now, calculate the final "actual" pool staker balance (which will act as a buffer and capture any lost minipool ETH due to integer division):
 ```go
 poolStakerEth := smoothingPoolBalance - totalEthForMinipools
 ```
