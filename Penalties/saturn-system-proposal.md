@@ -70,7 +70,7 @@ The former is easily verifiable with on-chain data and what we will focus on in 
 The latter is much more difficult to detect, and its threat is why we have claimed that MEV-Boost will be required by node operators eventually.
 
 In light of this, our first iteration of this specification will **only focus on the first vector** as a way to detect cheating.
-This means that MEV-Boost we would no longer have any plans to require MEV-Boost for node operators under this system, and it will remain opt-out in perpetuity.
+This means that we would no longer have any plans to require MEV-Boost for node operators under this system, and it will remain opt-out in perpetuity.
 
 Regardless, as part of flagging, this system requires the following information to be presented:
 - The address of the node operator being flagged
