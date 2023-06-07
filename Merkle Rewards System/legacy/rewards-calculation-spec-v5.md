@@ -1,27 +1,22 @@
-# [DRAFT] Specification for Rewards Calculation
+# Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
-
-**This is still a draft and may change at any time.**
 
 
 ## Version
 
-This describes **v6** of the rewards calculation ruleset.
+This describes **v5** of the rewards calculation ruleset.
 
 
-### Changes since `v5`
+### Changes since `v4`
 
-The following updates have been made from [v5](./legacy/rewards-calculation-spec-v5.md) of the spec.
+The following updates have been made from [v4](./legacy/rewards-calculation-spec-v4.md) of the spec.
 
 
 #### Changes
 
-- In the [Calculating Attestation Performance and Minipool Scores](#calculating-attestation-performance-and-minipool-scores) section, the method for determining if a duty is eligible for assessment has been amended. Minipools must now be in the `staking` status, and their `statusTime` (the time they entered the `staking` status) must be *before* an attestation duty in order for it to be considered; otherwise, it is ignored.
-  - This is done to properly support consistent rewards calculation for solo staker migrations using the new "rolling records" system that does periodic checkpoints of successful and missing attestations at arbitrary states during the interval.
-- The [Minipool Eligibility](#optional-minipool-eligibility) section is now marked as optional, as the new scoring system will process attestations the same way with or without it.
-- There is a new sectiond called [(Optional) Removing Idle Minipools](#optional-removing-idle-minipools) which clarifies that prior to rewards calculation, minipools with no score (no successful or missing attestations) can be removed from subsequent calculations. The Rocket Pool rewards interval files include a "minipool performance" file for the interval, and this simply clarifies that it is not an error if such minipools do not appear in that file.
-- In [Oracle DAO Rewards](#oracle-dao-rewards), Oracle DAO rewards are no longer pro-rated by the node's registration time. Instead, they are pro-rated based on the time the node joined the Oracle DAO.
+- The `minCollateral` and `maxCollateral` for a node's RPL rewards (defined in [Collateral Rewards](#collateral-rewards)) now use the amount of ETH borrowed from the staking pool and bonded for the minipool on a per-minipool basis, instead of a flat 16 ETH for both.
+- The entire process for calculating Smoothing Pool ETH rewards for nodes has been redesigned to make it easier to understand and compatible with the Atlas upgrade, which makes the ETH bonds for minipools variable.
 
 ---
 
@@ -305,27 +300,27 @@ for i = 0; i < oDaoCount; i++ {
 }
 ```
 
-Next, scale the amount of RPL earned by each Oracle DAO node by how long the node has been part of the Oracle DAO.
-This prorates RPL rewards for new nodes that haven't been a member for a full rewards interval, so they only receive a corresponding fraction of the rewards based on how long they've been a part of the DAO.
+Next, scale the amount of RPL earned by each Oracle DAO node by how long the node has been registered.
+This prorates RPL rewards for new nodes that haven't been active for a full rewards interval, so they only receive a corresponding fraction of the rewards based on how long they've been registered.
 
-For example, if the rewards period were 6300 Epochs (28 days) and a node joined 10 days ago, their share would be reduced to **35.7%** (10 / 28) of its true value.
+For example, if the rewards period were 6300 Epochs (28 days) and a node registered 10 days ago, their share would be reduced to **35.7%** (10 / 28) of its true value.
 
-The node's join time can be retrieved with the following contract method:
+The node's registration time can be retrieved with the following contract method:
 
 ```go
-joinTime := RocketDAONodeTrusted.getMemberJoinedTime(nodeAddress)
+registrationTime := RocketNodeManager.getNodeRegistrationTime(nodeAddress)
 ```
 
-This should be subtracted from the timestamp of `targetElBlock` to determine the time since joining.
+This should be subtracted from the timestamp of `targetElBlock` to determine the node's age.
 It should then be compared to `intervalTime` to determine the prorated rewards.
 
 One way to accomplish this is to use the **number of seconds** the node participated in the interval as an analog to the "effective stake" in the Collateral RPL calculation above:
 
 ```go
-odaoTime := targetElBlock.Timestamp - joinTime
+nodeAge := targetElBlock.Timestamp - registrationTime
 participatedSeconds := intervalTime
-if (odaoTime < intervalTime) {
-    participatedSeconds = odaoTime
+if (nodeAge < intervalTime) {
+    participatedSeconds = nodeAge
 }
 ```
 
@@ -418,9 +413,9 @@ Remove it from the list of eligible nodes and ignore it.
 If the node has **at least one `staking` minipool**, then it is eligible for calculation. Otherwise, remove it from the list of eligible nodes and ignore it.
 
 
-### (Optional) Minipool Eligibility
+### Minipool Eligibility
 
-In addition to filtering out ineligible nodes, minipools can also be filtered to speed up calculations.
+In addition to filtering out ineligible nodes, minipools must also be filtered.
 This is done by removing minipools that exited **before** the interval starts, or are scheduled to activate **after** the interval ends.
 
 For each `staking` minipool in each eligible node, check the `activation_epoch` and `exit_epoch` for that minipool's validator:
@@ -442,7 +437,7 @@ isOptedIn := RocketNodeManager.getSmoothingPoolRegistrationState(nodeAddress)
 statusChangeTime := rocketNodeManager.getSmoothingPoolRegistrationChanged(nodeAddress) // The contracts provide the Unix timestamp, in seconds
 ```
 
-Use these details to determine the opt-in and opt-out time; for example:
+Use these details to determine the opt-in and opt-out time:
 
 ```go
 farPastTime := 0 // Some arbitrary timestamp that occurred before the start of the interval; the Unix epoch is fine for this
@@ -465,20 +460,8 @@ Start by defining the following variables:
 - `successfulAttestations` which tracks the number of successful attestations that were eligible for Smoothing Pool rewards, starting at `0`
 - `minipoolScores`, a map of minipools to their individual cumulative minipool scores 
 
-For each eligible minipool in each eligible node, make a note of its status and status change time:
+For each eligible minipool in each eligible node, process the attestation performance of the minipool to gauge its `minipoolScore`.
 
-```go
-status := minipool.getStatus()
-statusTime := minipool.getStatusTime()
-```
-
-For duties to be eligible for rewards inclusion, the minipool must be in the `staking` status at the time of the attestation.
-This is used because `status` is one of the final states of a minipool (the other being `dissolved`, which is mutually exclusive with `staking`) and `statusTime` indicates the time at which the minipool entered `staking` status.
-Thus, if a minipool's status is `staking`, it will always be `staking` and you can determine when it entered that state by using `statusTime`.
-
-*Note that the `finalized` flag is not a true state and does not overwrite `staking`; it is a separate boolean value.*
-
-Next, process the attestation performance of the minipool to gauge its `minipoolScore`.
 Attestation performance is calculated on an Epoch-by-Epoch basis, from the first Epoch to the last Epoch of the interval, as follows for each Epoch:
 
 1. Get the **attestation committees** for the Epoch (e.g., `/eth/v1/beacon/states/head/committees?epoch=<epochIndex>`)
@@ -488,11 +471,7 @@ Attestation performance is calculated on an Epoch-by-Epoch basis, from the first
     ```go
     blockTime := genesisTime + secondsPerSlot * slotIndex
     ```
-5. For the minipool corresponding to `position`:
-   1. If `blockTime` occurred *before* the parent node's `optInTime` or *after* the parent node's `optOutTime`, this attestation is not eligible for Smoothing Pool rewards. Ignore it.
-   2. If the minipool is not in `staking` status, it has not performed any eligible attestations yet so this duty should be ignored.
-   3. If `blockTime` occurred *before* the minipool's `statusTime`, it was not in `staking` status during the attestation duty so this duty should be ignored.
-      1. *Note that this check will only be relevant for solo staker migrations, as conventionally-created minipools will enter `staking` long before they begin attesting whereas solo staker migrations will be attesting prior to entering `staking` status.*
+5. For the minipool corresponding to `position`: if `blockTime` occurred *before* the parent node's `optInTime` or *after* the parent node's `optOutTime`, this attestation is not eligible for Smoothing Pool rewards. Ignore it.
 6. Look at the attestations in the subsequent blocks with matching `slotIndex`, `committeeIndex`, and `position`. Start at the block directly after `slotIndex`, and look up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`) from `slotIndex`.
    1. If one was recorded in *any of these blocks*, this attestation was successful. Calculate the `minipoolScore` for this attestation as described below.
    2. If the attestation was not found, it was missed. Add it to a running list of `missedAttestations`.
@@ -525,13 +504,6 @@ When a successful attestation is found, calculate the `minipoolScore` awarded to
     totalMinipoolScore += minipoolScore
     successfulAttestations++
     ``` 
-
-### (Optional) Removing Idle Minipools
-
-Once each minipool's score has been determined, you may optionally remove minipools with zero score (i.e., no successful or missed attestations).
-These minipools are considered idle and will just waste calculations in the final tally.
-
-While skipping this step won't affect the final calculation, if you are logging the records of your calculation (such as with the "minipool performance" file included in the canonical Rocket Pool rewards intervals) then idle minipools may be omitted from the final report. 
 
 
 ### Calculating Node Rewards
