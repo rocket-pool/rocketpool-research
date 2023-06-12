@@ -283,7 +283,7 @@ nodeCollateralAmount := collateralRewards * nodeEffectiveStake / totalEffectiveR
 ```
 
 Sum the `nodeCollateralAmount` for each node to arrive at the `totalCalculatedCollateralRewards`.
-As a sanity check, compare this to the original `collateralRewards` value using the **total number of minipools** as an delta value:
+As a sanity check, compare this to the original `collateralRewards` value using the **total number of minipools** as a delta value:
 
 ```go
 if collateralRewards - totalCalculatedCollateralRewards > numberOfMinipools {
