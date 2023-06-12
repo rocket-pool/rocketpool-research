@@ -217,7 +217,7 @@ For each `staking` minipool, check if it was active at the end of the interval:
 
 1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
 2. Get the `activation_epoch` and `exit_epoch` for the validator.
-3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch, it is eligible.
+3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch (`activation_epoch` < `targetSlotEpoch`) and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch (`exit_epoch` > `targetSlotEpoch`), it is eligible.
    1. Add the amount of ETH borrowed by the node operator for this minipool to `eligibleBorrowedEth`:
         ```go
         borrowedEth := minipool.getUserDepositBalance()
