@@ -473,7 +473,7 @@ statusTime := minipool.getStatusTime()
 ```
 
 For duties to be eligible for rewards inclusion, the minipool must be in the `staking` status at the time of the attestation duty assignment.
-You may use the state of the chain at the time of the duty assignment (*not the actual reported attestation*), or any state after the duty assignment, to assess this.
+You may use the state of the chain at the time of the duty assignment or any state after the duty assignment to assess this.
 This is used because `status` is one of the final states of a minipool (the other being `dissolved`, which is mutually exclusive with `staking`) and `statusTime` indicates the time at which the minipool entered `staking` status.
 Thus, if a minipool's status is `staking`, it will always be `staking` and you can determine when it entered that state by using `statusTime`.
 
