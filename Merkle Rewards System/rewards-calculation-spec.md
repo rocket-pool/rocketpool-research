@@ -482,7 +482,7 @@ Next, process the attestation performance of the minipool to gauge its `minipool
 Attestation performance is calculated on an Epoch-by-Epoch basis, from the first Epoch to the last Epoch of the interval, as follows for each Epoch:
 
 1. Get the **attestation committees** for the Epoch (e.g., `/eth/v1/beacon/states/head/committees?epoch=<epochIndex>`)
-2. Traverse the list of slots and committees, noting the `slotIndex`, `committeeIndex`, and `position` of an attestation assignment for the minipool. Ignore validators that do not correspond to Rocket Pool minipools.
+2. Traverse the list of slots and committees, noting the `slotIndex`, `committeeIndex`, and `position` of an attestation assignment for the minipool (where `position` is the 0-based index of the entry in the response's list of validator indices). Ignore validators that do not correspond to *eligible* Rocket Pool minipools.
 3. Get the block at `slotIndex` (e.g., `/eth/v2/beacon/blocks/<slotIndex>`).
 4. Get the time of the block:
     ```go
