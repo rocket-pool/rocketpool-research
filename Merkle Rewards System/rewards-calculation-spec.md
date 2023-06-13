@@ -472,7 +472,8 @@ status := minipool.getStatus()
 statusTime := minipool.getStatusTime()
 ```
 
-For duties to be eligible for rewards inclusion, the minipool must be in the `staking` status at the time of the attestation.
+For duties to be eligible for rewards inclusion, the minipool must be in the `staking` status at the time of the attestation duty assignment.
+You may use the state of the chain at the time of the duty assignment (*not the actual reported attestation*), or any state after the duty assignment, to assess this.
 This is used because `status` is one of the final states of a minipool (the other being `dissolved`, which is mutually exclusive with `staking`) and `statusTime` indicates the time at which the minipool entered `staking` status.
 Thus, if a minipool's status is `staking`, it will always be `staking` and you can determine when it entered that state by using `statusTime`.
 
@@ -490,7 +491,7 @@ Attestation performance is calculated on an Epoch-by-Epoch basis, from the first
     ```
 5. For the minipool corresponding to `position`:
    1. If `blockTime` occurred *before* the parent node's `optInTime` or *after* the parent node's `optOutTime`, this attestation is not eligible for Smoothing Pool rewards. Ignore it.
-   2. If the minipool is not in `staking` status, it has not performed any eligible attestations yet so this duty should be ignored.
+   2. If the minipool is not in `staking` status by the time of this attestation, it has not performed any eligible attestations yet so this duty should be ignored.
    3. If `blockTime` occurred *before* the minipool's `statusTime`, it was not in `staking` status during the attestation duty so this duty should be ignored.
       1. *Note that this check will only be relevant for solo staker migrations, as conventionally-created minipools will enter `staking` long before they begin attesting whereas solo staker migrations will be attesting prior to entering `staking` status.*
 6. Look at the attestations in the subsequent blocks with matching `slotIndex`, `committeeIndex`, and `position`. Start at the block directly after `slotIndex`, and look up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`) from `slotIndex`.
