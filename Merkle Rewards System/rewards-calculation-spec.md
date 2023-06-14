@@ -501,7 +501,7 @@ Attestation performance is calculated on an Epoch-by-Epoch basis, from the first
 When a successful attestation is found, calculate the `minipoolScore` awarded to the minipool for that attestation:.
 
 1. Add the attestation to a running list of `goodAttestations` for the minipool.
-2. Get the amount of ETH bonded by the node operator and the commission (node fee) for this minipool on this specific block, using the block's timestamp and the timestamp of the minipool's last bond reduction:
+2. Get the amount of ETH bonded by the node operator and the commission (node fee) for this minipool on this block (the block corresponding to the attestation duty assignment) by using the block's timestamp and the timestamp of the minipool's last bond reduction:
     ```go
     currentBond := minipool.getNodeDepositBalance()
     currentFee := minipool.getNodeFee()
