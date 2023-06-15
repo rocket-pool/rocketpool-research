@@ -487,6 +487,7 @@ When a successful attestation is found, calculate the `minipoolScore` awarded to
     previousFee := RocketMinipoolBondReducer.getLastBondReductionPrevNodeFee(minipool.Address)
     lastReduceTime := RocketMinipoolBondReducer.getLastBondReductionTime(minipool.Address)
 
+    fee := currentFee
     bond := currentBond
     if lastReduceTime > 0 && lastReduceTime > blockTime {
          // If this block occurred before the bond was reduced, use the old values
