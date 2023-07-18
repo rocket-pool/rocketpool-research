@@ -25,6 +25,7 @@ For example, if there were 9 Rocket Pool nodes, they would each constitute a lea
 ### Sorting Leaf Nodes
 
 Prior to tree generation, all of the Rocket Pool nodes's metadata must be hashed to produce the values of the corresponding leaf nodes.
+The hashes should be recorded in **big-endian format**.
 This collection must then be **sorted lexicographically** by these hash values, so the leaf node with the lowest value becomes the leftmost (first) leaf node.
 The leaf node with the second-lowest value must be the second leaf node, and so on.
 

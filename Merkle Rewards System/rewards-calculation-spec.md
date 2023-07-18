@@ -497,6 +497,7 @@ Attestation performance is calculated on an Epoch-by-Epoch basis, from the first
 6. Look at the attestations in the subsequent blocks with matching `slotIndex`, `committeeIndex`, and `position`. Start at the block directly after `slotIndex`, and look up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`) from `slotIndex`.
    1. If one was recorded in *any of these blocks*, this attestation was successful. Calculate the `minipoolScore` for this attestation as described below.
    2. If the attestation was not found, it was missed. Add it to a running list of `missedAttestations`.
+   3. The boundary is inclusive, so if an attestation for slot `n` is found in slot `n + BeaconConfig.SlotsPerEpoch` then it was successful. If it was found in slot `n + BeaconConfig.SlotsPerEpoch + 1`, it is too late and should be considered missed.
 
 When a successful attestation is found, calculate the `minipoolScore` awarded to the minipool for that attestation:.
 
