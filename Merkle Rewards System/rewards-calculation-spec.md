@@ -1,8 +1,6 @@
-# [DRAFT] Specification for Rewards Calculation
+Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
-
-**This is still a draft and may change at any time.**
 
 
 ## Version
