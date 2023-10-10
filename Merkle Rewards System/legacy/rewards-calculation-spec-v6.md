@@ -1,33 +1,25 @@
-# [DRAFT] Specification for Rewards Calculation
+# Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
 
 
 ## Version
 
-This describes **v7** of the rewards calculation ruleset.
+This describes **v6** of the rewards calculation ruleset.
 
 
-### Changes since `v6`
+### Changes since `v5`
 
-The following updates have been made from [v6](./legacy/rewards-calculation-spec-v6.md) of the spec.
-
-
-#### Major Updates
-
-- A validator's `activation_epoch` is no longer checked during RPL eligibility calculation. Minipools that activate *after* the end of the current interval are now entitled to RPL rewards so long as their corresponding validator exists on the Beacon Chain. See [Collateral Rewards](#collateral-rewards) for details.
+The following updates have been made from [v5](./legacy/rewards-calculation-spec-v5.md) of the spec.
 
 
-#### Minor Changes
+#### Changes
 
-- If there are no nodes eligible for RPL rewards, the node collateral RPL rewards for the interval are now sent to the Protocol DAO. See [Collateral Rewards](#collateral-rewards) for details.
-- In the [Time of Eligibility](#time-of-eligibility) section, `startTime` is refined: if the value from `RocketRewardsPool.getClaimIntervalTimeStart()` is `0`, use `RocketTokenRPL.getInflationIntervalStartTime()` instead.
-- In the [Collateral Rewards](#collateral-rewards) and [Oracle DAO Rewards](#oracle-dao-rewards) sections, the "epsilon" value used as an upper bound for errors during sanity checking has changed. Instead of the total number of minipools, it is now the higher of the total number of nodes and the total number of minipools.
-
-
-#### Clarifications
-
-- Clarified in [RPL Amounts per Group](#rpl-amounts-per-group) that if the amount of pending RPL rewards is `0`, this block cannot be used for rewards submission and the user should just wait until the next interval rolls over. 
+- In the [Calculating Attestation Performance and Minipool Scores](#calculating-attestation-performance-and-minipool-scores) section, the method for determining if a duty is eligible for assessment has been amended. Minipools must now be in the `staking` status, and their `statusTime` (the time they entered the `staking` status) must be *before* an attestation duty in order for it to be considered; otherwise, it is ignored.
+  - This is done to properly support consistent rewards calculation for solo staker migrations using the new "rolling records" system that does periodic checkpoints of successful and missing attestations at arbitrary states during the interval.
+- The [Minipool Eligibility](#optional-minipool-eligibility) section is now marked as optional, as the new scoring system will process attestations the same way with or without it.
+- There is a new section called [(Optional) Removing Idle Minipools](#optional-removing-idle-minipools) which clarifies that prior to rewards calculation, minipools with no score (no successful or missing attestations) can be removed from subsequent calculations. The Rocket Pool rewards interval files include a "minipool performance" file for the interval, and this simply clarifies that it is not an error if such minipools do not appear in that file.
+- In [Oracle DAO Rewards](#oracle-dao-rewards), Oracle DAO rewards are no longer pro-rated by the node's registration time. Instead, they are pro-rated based on the time the node joined the Oracle DAO.
 
 ---
 
@@ -52,11 +44,6 @@ Each interval is determined by an on-chain setting that specifies the amount of 
 This value marks the **start time**, called `startTime` (as a **Unix timestamp**, the number of seconds since the Unix Epoch) of the currently active interval:
 ```go
 RocketRewardsPool.getClaimIntervalTimeStart()
-```
-
-If this value is 0, use the start time from the RPL token (also a Unix timestamp) as `startTime`:
-```go
-RocketTokenRPL.getInflationIntervalStartTime()
 ```
 
 This value marks the **amount of time** in seconds, called `intervalTime`, that must pass since `startTime` before a new interval is ready to be recorded:
@@ -192,10 +179,7 @@ collateralRewards := pendingRewards * collateralPercent / _100Percent
 oDaoRewards := pendingRewards * oDaoPercent / _100Percent
 pDaoRewards := pendingRewards * pDaoPercent / _100Percent
 ```
-
-If the total amount of pending rewards is `0` for any reason, this interval cannot be used for rewards submission.
-Simply wait for the protocol to roll over to the next interval and try again.
-
+    
 Note that these will not be the **final** values attributed to each of these groups due to division truncation; they are simply starting points when calculating the actual values per group.
 The final amounts are discussed later in this section. 
 
@@ -227,11 +211,11 @@ Define `eligibleBorrowedEth` as the total amount of ETH borrowed by the node ope
 Define `eligibleBondedEth` as the total amount of ETH the node operator has bonded for its eligible minipools.
 Start with both set to `0`.
 
-For each `staking` minipool, check if it was not exited from the Beacon Chain at the end of the interval:
+For each `staking` minipool, check if it was active at the end of the interval:
 
-1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`). If the validator did not exist at `targetBcSlot`, ignore it and continue.
-2. Get the `exit_epoch` for the validator.
-3. If the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch (`exit_epoch` > `targetSlotEpoch`), it is eligible.
+1. Get the `status` of the validator from the Beacon Chain for `targetBcSlot` (e.g., `/eth/v1/beacon/states/<targetBcSlot>/validators?id=0x<pubkey>`).
+2. Get the `activation_epoch` and `exit_epoch` for the validator.
+3. If the validator's `activation_epoch` was **before** `targetBcSlot`'s epoch (`activation_epoch` < `targetSlotEpoch`) and if the validator's `exit_epoch` is **after** `targetBcSlot`'s epoch (`exit_epoch` > `targetSlotEpoch`), it is eligible.
    1. Add the amount of ETH borrowed by the node operator for this minipool to `eligibleBorrowedEth`:
         ```go
         borrowedEth := minipool.getUserDepositBalance()
@@ -290,8 +274,6 @@ if (nodeAge < intervalTime) {
 
 When finished, add each of these to retrieve the `totalEffectiveRplStake` across the entire network.
 
-If the `totalEffectiveRplStake` is `0` (i.e., *none* of the nodes are eligible for RPL rewards), add `collateralRewards` to `pDaoRewards`. Otherwise, if *any* node is eligible for rewards, perform the following steps instead.
-
 With this in hand, you can now calculate the **collateral RPL per node** by taking the original `collateralRewards` value, multiplying by the `nodeEffectiveStake`, and dividing by the `totalEffectiveRplStake`:
 
 ```go
@@ -299,11 +281,10 @@ nodeCollateralAmount := collateralRewards * nodeEffectiveStake / totalEffectiveR
 ```
 
 Sum the `nodeCollateralAmount` for each node to arrive at the `totalCalculatedCollateralRewards`.
-As a sanity check, compare this to the original `collateralRewards` value using either the **total number of nodes** or the **total number of minipools**, whichever is higher, as a delta value:
+As a sanity check, compare this to the original `collateralRewards` value using the **total number of minipools** as a delta value:
 
 ```go
-epsilon := max(numberOfNodes, numberOfMinipools)
-if collateralRewards - totalCalculatedCollateralRewards > epsilon {
+if collateralRewards - totalCalculatedCollateralRewards > numberOfMinipools {
     // Raise an error because the calculation has excessive error
 }
 ```
@@ -355,11 +336,10 @@ oDaoAmount := oDaoRewards * participatedSeconds / totalParticipatedSeconds
 ```
 
 Sum the `oDaoAmount` for each node to arrive at the `totalCalculatedODaoRewards`.
-As a sanity check, compare this to the original `oDaoRewards` value using either the **total number of nodes** or the **total number of minipools**, whichever is higher, as a delta value:
+As a sanity check, compare this to the original `oDaoRewards` value using the **total number of minipools** as an delta value:
 
 ```go
-epsilon := max(numberOfNodes, numberOfMinipools)
-if oDaoRewards - totalCalculatedODaoRewards > epsilon {
+if oDaoRewards - totalCalculatedODaoRewards > numberOfMinipools {
     // Raise an error because the calculation has excessive error
 }
 ```
