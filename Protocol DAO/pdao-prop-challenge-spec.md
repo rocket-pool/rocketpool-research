@@ -675,6 +675,8 @@ Since the proposer cannot respond to the challenge, the challenge window on the 
 
 Once the proposal has been defeated, the challenger can reclaim all of their originally bonded RPL and collect the proposer's RPL bond using the `rocketDAOProtocolVerifier.claimBondChallenger(proposalID, indices)` function where `indices` is an array of unsigned 256-bit integers, each of which is a tree node index that the challenger created a challenge against (in this case, it would be `6`, `25`, and `100`).
 
+*NOTE: to clarify, the proposer's bond will be split among all of the challengers that contributed to the proposal's defeat, should more than one challenger successfully challenge an node tree index.*
+
 
 ### Step 7b: Challenger is Wrong
 
