@@ -1,33 +1,33 @@
-# Specification for Rewards Calculation
+# [DRAFT] Specification for Rewards Calculation
 
 This document serves as a formal specification for the way that the rewards intervals and the values within are calculated as part of the [Redstone](https://medium.com/rocket-pool/rocket-pool-the-merge-redstone-601d9efd6b4) rewards system.
 
 
 ## Version
 
-This describes **v8** of the rewards calculation ruleset.
-
-This version implements RPIP-30 following the suggestions [here](./misc/patches-rpip-30-suggestions.md)
+This describes **v7** of the rewards calculation ruleset.
 
 
-### Changes since `v7`
+### Changes since `v6`
 
-The following updates have been made from [v7](./legacy/rewards-calculation-spec-v7.md) of the spec.
+The following updates have been made from [v6](./legacy/rewards-calculation-spec-v6.md) of the spec.
 
 
 #### Major Updates
 
-- Following the Protocol DAO vote to approve RPIP-30, [Collateral Rewards](#collateral-rewards) rewards are now weighted on a curve, favoring 8 Ether Minipools and creating diminishing returns as additional RPL above the minimum is staked.
-  - This change is phased in linearly over 5 intervals, starting with interval 18, and will be fully effective in interval 23.
-- There is no longer a maximum node collateral.
+- A validator's `activation_epoch` is no longer checked during RPL eligibility calculation. Minipools that activate *after* the end of the current interval are now entitled to RPL rewards so long as their corresponding validator exists on the Beacon Chain. See [Collateral Rewards](#collateral-rewards) for details.
 
 
 #### Minor Changes
 
-- The Rewards File now includes a `totalNodeWeight` field which represents the sum of the rewards weighting.
+- If there are no nodes eligible for RPL rewards, the node collateral RPL rewards for the interval are now sent to the Protocol DAO. See [Collateral Rewards](#collateral-rewards) for details.
+- In the [Time of Eligibility](#time-of-eligibility) section, `startTime` is refined: if the value from `RocketRewardsPool.getClaimIntervalTimeStart()` is `0`, use `RocketTokenRPL.getInflationIntervalStartTime()` instead.
+- In the [Collateral Rewards](#collateral-rewards) and [Oracle DAO Rewards](#oracle-dao-rewards) sections, the "epsilon" value used as an upper bound for errors during sanity checking has changed. Instead of the total number of minipools, it is now the higher of the total number of nodes and the total number of minipools.
 
 
 #### Clarifications
+
+- Clarified in [RPL Amounts per Group](#rpl-amounts-per-group) that if the amount of pending RPL rewards is `0`, this block cannot be used for rewards submission and the user should just wait until the next interval rolls over. 
 
 ---
 
@@ -254,29 +254,23 @@ maxCollateral := eligibleBondedEth * maxCollateralFraction / ratio
 
 Note that `minCollateral` is based on the amount *borrowed*, and `maxCollateral` is based on the amount *bonded*.
 
-Now, calculate the node's effective RPL stake (`nodeEffectiveStake`) and weight (`nodeWeight`) based on the above:
+Now, calculate the node's effective RPL stake (`nodeEffectiveStake`) based on the above:
 
 ```go
 nodeStake := RocketNodeStaking.getNodeRPLStake(nodeAddress)
 if nodeStake < minCollateral {
     nodeEffectiveStake := 0
-    nodeWeight := 0
+} else if nodeStake > maxCollateral {
+    nodeEffectiveStake := maxCollateral
 } else {
-    if nodeStake > maxCollateral {
-        nodeEffectiveStake := maxCollateral
-    } else {
-        nodeEffectiveStake := nodeStake
-    }
-    nodeWeight := getNodeWeight(eligibleBorrowedEth, nodeStake, ratio)
+    nodeEffectiveStake := nodeStake
 }
 ```
 
-`getNodeWeight()` is defined in the [getNodeWeight section](#getnodeweight).
-
-Next, scale the `nodeEffectiveStake` and `nodeWeight` by how long the node has been registered.
+Next, scale the `nodeEffectiveStake` by how long the node has been registered.
 This prorates RPL rewards for new nodes that haven't been active for a full rewards interval, so they only receive a corresponding fraction of the rewards based on how long they've been registered.
 
-For example, if the rewards period were 6300 Epochs (28 days) and a node registered 10 days ago, their `nodeEffectiveStake` and `nodeWeight` would be reduced to **35.7%** (10 / 28) of its true value.
+For example, if the rewards period were 6300 Epochs (28 days) and a node registered 10 days ago, their `nodeEffectiveStake` would be reduced to **35.7%** (10 / 28) of its true value.
 
 The node's registration time can be retrieved with the following contract method:
 
@@ -291,26 +285,17 @@ It should then be compared to `intervalTime` to determine the prorated effective
 nodeAge := targetElBlock.Timestamp - registrationTime
 if (nodeAge < intervalTime) {
     nodeEffectiveStake = nodeEffectiveStake * nodeAge / intervalTime
-    nodeWeight = nodeWeight * nodeAge / intervalTime
 }
 ```
 
-Finally:
-- Sum each `nodeEffectiveStake` to retrieve the `totalEffectiveRplStake` across the entire network.
-- Sum each `nodeWeight` to retrieve the `totalNodeWeight` across the entire network.
+When finished, add each of these to retrieve the `totalEffectiveRplStake` across the entire network.
 
-If the `totalEffectiveRplStake` or `totalNodeWeight` is `0` (i.e., *none* of the nodes are eligible for RPL rewards), add `collateralRewards` to `pDaoRewards`. Otherwise, if *any* node is eligible for rewards, perform the following steps instead.
+If the `totalEffectiveRplStake` is `0` (i.e., *none* of the nodes are eligible for RPL rewards), add `collateralRewards` to `pDaoRewards`. Otherwise, if *any* node is eligible for rewards, perform the following steps instead.
 
-Now, calculate the the cycle factor, `C`, of RPIP-30's phase-in. Define C to be on the closed range `[1, 6]` and calculate it:
+With this in hand, you can now calculate the **collateral RPL per node** by taking the original `collateralRewards` value, multiplying by the `nodeEffectiveStake`, and dividing by the `totalEffectiveRplStake`:
 
 ```go
-C := min(6, interval - 18 + 1)
-```
-
-You can now calculate the **collateral RPL per node** from `nodeWeight`, `totalNodeWeight`, `nodeEffectiveStake`, `totalEffectiveRplStake`, `C`, and `collateralRewards`.
-
-```go
-nodeCollateralAmount := (collateralRewards * C * nodeWeight / (totalNodeWeight * 6)) + (collateralRewards * (6 - C) * nodeEffectiveStake / (totalEffectiveRplStake * 6))
+nodeCollateralAmount := collateralRewards * nodeEffectiveStake / totalEffectiveRplStake
 ```
 
 Sum the `nodeCollateralAmount` for each node to arrive at the `totalCalculatedCollateralRewards`.
@@ -323,64 +308,6 @@ if collateralRewards - totalCalculatedCollateralRewards > epsilon {
 }
 ```
 
-#### getNodeWeight
-
-Calculate `stakedRplValueInEth`:
-
-```go
-stakedRplValueInEth = nodeStake * ratio / 1 Eth.
-```
-
-Calculate `percentOfBorrowedEth`:
-
-```go
-percentOfBorrowedEth = stakedRplValueInEth * 100 Eth / eligibleBorrowedEth
-```
-
-If `percentOfBorrowedEth <= 15 Eth`, return `100 * stakedRplValueInEth`.
-
-Otherwise, return `((13.6137 Eth + 2 * ln(percentOfBorrowedEth - 13 Eth)) * eligibleBorrowedEth) / 1 Eth`.
-
-`ln` is specified in the next section.
-
-#### ln
-
-`ln(x)` is defined as `log2(x) * 1 Eth / 1442695040888963407`
-
-`log2` is defined in the next section.
-
-#### log2
-
-`log2(x)` is approximated using [iterative approximation](https://en.wikipedia.org/wiki/Binary_logarithm#Iterative_approximation) for 60 inner loops.
-
-Define `result = 0`
-
-Calculate `exponent` of the highest power of two that is less than or equal to the input `x`.
-That is, if `x` is `40 Eth`, the highest power of two that is less than 40 Eth is 32 Eth, and the most significant bit of 0b0100000 (32 in binary) is at index 5 (counting the least signifigant bit as index 0), so `exponent` is 5.
-
-Multiply the `exponent` by 1 Eth and add it to the `result`:
-
-```go
-result = result + exponent * 1 Eth
-```
-
-Next, calculate the iterative approximation's `y` term:
-```go
-y = x >> exponent
-```
-
-If `y` is 1 Eth, return `result`.
-
-Otherwise, define `delta = 1 Eth`.
-
-Loop 60 times. In each loop:
-1. Divide delta by 2, `delta = delta / 2`
-1. Square y, `y = y * y /  1 Eth`
-1. If `y >= 2 Eth`:
-    * Add `delta` to `result`, i.e. `result = result + delta`
-    * Divide `y` by 2, i.e. `y = y / 2` 
-
-After 60 loops, return `result`.
 
 ### Oracle DAO Rewards
 
