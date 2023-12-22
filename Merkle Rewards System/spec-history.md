@@ -12,8 +12,8 @@ This table shows which rewards specification was used for each rewards interval 
 | 5 | [v3](./legacy/rewards-calculation-spec-v3.md) |
 | 6-7 | [v4](./legacy/rewards-calculation-spec-v4.md) |
 | 8-11 | [v5](./legacy/rewards-calculation-spec-v5.md) |
-| 12-? | [v6](./legacy/rewards-calculation-spec-v6.md) |
-| ?-17 | [v7](./legacy/rewards-calculation-spec-v7.md) |
+| 12-15 | [v6](./legacy/rewards-calculation-spec-v6.md) |
+| 15-17 | [v7](./legacy/rewards-calculation-spec-v7.md) |
 | 18+ | [v8](./rewards-calculation-spec.md) |
 
 ## Prater (Goerli) Testnet
