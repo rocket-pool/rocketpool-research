@@ -29,12 +29,15 @@ The following updates have been made from [v7](./legacy/rewards-calculation-spec
 
 #### Clarifications
 
+- Disclaimers / Notes section has been updated to specify multiplication precedes division to preserve accuracy.
+
 ---
 
 
 ## Disclaimers / Notes
 
 - All arithmetic described here is intended to be **integer arithmetic**. There are no floating point values, and floating point division is not used to allow for maximum portability and elimination of floating point errors.
+  - Multiplicative operations, except where specifically grouped by parentheses, should precede division operations when otherwise reorderable through the associative property, to preserve accuracy.
 - Unless explicitly specified, the following rules about data formats apply:
   - Timestamps are represented as **Unix timestamps**, and are provided as a **total number of seconds** since the Unix Epoch.
   - Token quantities are represented in **wei**.
