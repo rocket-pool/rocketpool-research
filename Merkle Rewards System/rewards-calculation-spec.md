@@ -355,7 +355,7 @@ Otherwise, return `((13.6137 Eth + 2 * ln(percentOfBorrowedEth - 13 Eth)) * elig
 
 Define `result = 0`
 
-Calculate `exponent` of the highest power of two that is less than or equal to the input `x`.
+Calculate `exponent` of the highest power of two that, when multiplied by 1 Eth, is less than or equal to the input `x`.
 That is, if `x` is `40 Eth`, the highest power of two that is less than 40 Eth is 32 Eth, and the most significant bit of 0b0100000 (32 in binary) is at index 5 (counting the least signifigant bit as index 0), so `exponent` is 5.
 
 Multiply the `exponent` by 1 Eth and add it to the `result`:
