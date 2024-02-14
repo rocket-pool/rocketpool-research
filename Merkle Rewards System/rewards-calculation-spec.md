@@ -20,6 +20,7 @@ The following updates have been made from [v7](./legacy/rewards-calculation-spec
 - Following the Protocol DAO vote to approve RPIP-30, [Collateral Rewards](#collateral-rewards) rewards are now weighted on a curve, favoring 8 Ether Minipools and creating diminishing returns as additional RPL above the minimum is staked.
   - This change is phased in linearly over 5 intervals, starting with interval 18, and will be fully effective in interval 23.
 - There is no longer a maximum node collateral.
+  - RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() is no longer called and a constant of 150% is used instead when calculating the phase-in for RPIP-30.
 
 
 #### Minor Changes
@@ -250,7 +251,7 @@ Next, calculate the minimum and maximum RPL collateral levels based on the ETH/R
 ```go
 ratio := RocketNetworkPrices.getRPLPrice()
 minCollateralFraction := RocketDAOProtocolSettingsNode.getMinimumPerMinipoolStake() // e.g., 10% in wei
-maxCollateralFraction := RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() // e.g., 150% in wei
+maxCollateralFraction := 1.5e18 // i.e., 150% in wei. Hard-coded by RPIP-30's phase-in rules.
 minCollateral := eligibleBorrowedEth * minCollateralFraction / ratio
 maxCollateral := eligibleBondedEth * maxCollateralFraction / ratio
 ``` 
