@@ -147,8 +147,8 @@ Once `targetBcSlot` and `targetElBlock` have been determined, the user will need
 This is because the rewards calculation will involve analyzing the attestation performance of validators up to the `targetBcSlot`.
 
 Due to [EIP-7045](https://eips.ethereum.org/EIPS/eip-7045), attestations are valid when they are assigned:
-* In Epochs less than DENEB_FORK_EPOCH as defined in the [consensus spec](https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/fork.md) (269568) and included up to 32 slots after the assigned slot.
-* In Epochs at least DENEB_FORK_EPOCH and included before the end of the Epoch following the Epoch containing the assigned slot.
+* In Epochs less than `DENEB_FORK_EPOCH` as defined in the [consensus spec](https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/fork.md) (e.g., 269568 on Mainnet) and included up to 32 slots after the assigned slot.
+* In Epochs at least `DENEB_FORK_EPOCH` and included before the end of the Epoch following the Epoch containing the assigned slot.
 
 The Epoch following the attestation slot must also be finalized so the attestation performance can be tracked.
 
