@@ -31,6 +31,7 @@ The following updates have been made from [v7](./legacy/rewards-calculation-spec
 #### Clarifications
 
 - Disclaimers / Notes section has been updated to specify multiplication precedes division to preserve accuracy.
+- Attestation eligibility surrounding the Deneb hard fork was clearly defined.
 
 ---
 
@@ -144,7 +145,12 @@ This block will be the `targetElBlock`.
 
 Once `targetBcSlot` and `targetElBlock` have been determined, the user will need to **wait until the Epoch after `targetSlotEpoch` has been finalized**.
 This is because the rewards calculation will involve analyzing the attestation performance of validators up to the `targetBcSlot`.
-As an attestation can be sent up to 32 slots after the assigned slot, the next Epoch must also be finalized so the attestation performance can be tracked.
+
+Due to [EIP-7045](https://eips.ethereum.org/EIPS/eip-7045), attestations are valid when they are assigned:
+* In Epochs less than `DENEB_FORK_EPOCH` as defined in the [consensus spec](https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/fork.md) (e.g., 269568 on Mainnet) and included up to 32 slots after the assigned slot.
+* In Epochs at least `DENEB_FORK_EPOCH` and included before the end of the Epoch following the Epoch containing the assigned slot.
+
+The Epoch following the attestation slot must also be finalized so the attestation performance can be tracked.
 
 For example, if a rewards interval occurred on Epoch 63, the user would have to wait until Epoch 64 was finalized before generating the rewards tree.
 
