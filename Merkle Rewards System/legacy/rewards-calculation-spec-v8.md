@@ -5,28 +5,33 @@ This document serves as a formal specification for the way that the rewards inte
 
 ## Version
 
-This describes **v9** of the rewards calculation ruleset.
+This describes **v8** of the rewards calculation ruleset.
 
-This version removes a step that explicitly specified the legal inclusion distance for an attestation, and instead defers to the Beacon Chain specification relevant at the time of `targetSlot`.
+This version implements RPIP-30 following the suggestions [here](./misc/patches-rpip-30-suggestions.md)
 
 
-### Changes since `v8`
+### Changes since `v7`
 
-The following updates have been made from [v8](./legacy/rewards-calculation-spec-v8.md) of the spec.
+The following updates have been made from [v7](./legacy/rewards-calculation-spec-v7.md) of the spec.
 
 
 #### Major Updates
 
-None
+- Following the Protocol DAO vote to approve RPIP-30, [Collateral Rewards](#collateral-rewards) rewards are now weighted on a curve, favoring 8 Ether Minipools and creating diminishing returns as additional RPL above the minimum is staked.
+  - This change is phased in linearly over 5 intervals, starting with interval 18, and will be fully effective in interval 23.
+- There is no longer a maximum node collateral.
+  - RocketDAOProtocolSettingsNode.getMaximumPerMinipoolStake() is no longer called and a constant of 150% is used instead when calculating the phase-in for RPIP-30.
+
 
 #### Minor Changes
 
-- The max inclusion distance for an attestation listed in [Calculating Attestation Performance and Minipool Scores](#calculating-attestation-performance-and-minipool-scores) has been generalized; instead of copying the distance from the Beacon Chain specification directly into this specification (which may become outdated), it now defers to the max inclusion distance prescribed by the Beacon Chain specification in-place at the time of the attestation duty. In practice, it will be determined transparently by the Beacon Client in use when querying for attestation data.
+- The Rewards File now includes a `totalNodeWeight` field which represents the sum of the rewards weighting.
 
 
 #### Clarifications
 
-None
+- Disclaimers / Notes section has been updated to specify multiplication precedes division to preserve accuracy.
+- Attestation eligibility surrounding the Deneb hard fork was clearly defined.
 
 ---
 
@@ -590,10 +595,10 @@ Attestation performance is calculated on an Epoch-by-Epoch basis, from the first
    2. If the minipool is not in `staking` status by the time of this attestation, it has not performed any eligible attestations yet so this duty should be ignored.
    3. If `blockTime` occurred *before* the minipool's `statusTime`, it was not in `staking` status during the attestation duty so this duty should be ignored.
       1. *Note that this check will only be relevant for solo staker migrations, as conventionally-created minipools will enter `staking` long before they begin attesting whereas solo staker migrations will be attesting prior to entering `staking` status.*
-6. Look at the attestations in the subsequent blocks with matching `slotIndex`, `committeeIndex`, and `position`. Continue until the slot at end of the epoch after `targetSlot`.
+6. Look at the attestations in the subsequent blocks with matching `slotIndex`, `committeeIndex`, and `position`. Start at the block directly after `slotIndex`, and look up to 1 Epoch away (`BeaconConfig.SlotsPerEpoch`) from `slotIndex`.
    1. If one was recorded in *any of these blocks*, this attestation was successful. Calculate the `minipoolScore` for this attestation as described below.
-      - *N.B.: The timeliness and validity of the attestation are determined by the Beacon Chain specification employed at the time of the attestation duty, and by extension, automatically determined by the Beacon Client being used.*
    2. If the attestation was not found, it was missed. Add it to a running list of `missedAttestations`.
+   3. The boundary is inclusive, so if an attestation for slot `n` is found in slot `n + BeaconConfig.SlotsPerEpoch` then it was successful. If it was found in slot `n + BeaconConfig.SlotsPerEpoch + 1`, it is too late and should be considered missed.
 
 When a successful attestation is found, calculate the `minipoolScore` awarded to the minipool for that attestation:.
 
