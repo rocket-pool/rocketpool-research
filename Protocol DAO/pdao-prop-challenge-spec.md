@@ -1,4 +1,4 @@
-# [DRAFT] Protocol DAO Proposal Challenge System Specification
+# Protocol DAO Proposal Challenge System Specification
 
 This specification describes the terminology, behavior, and design details of the Rocket Pool on-chain Protocol DAO proposal challenge process.
 
